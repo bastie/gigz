@@ -21,6 +21,7 @@
 		48844CC82BD2744E00FC54E7 /* gigz.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CBB2BD2744E00FC54E7 /* gigz.c */; };
 		48844CC92BD2744E00FC54E7 /* yarn.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CBC2BD2744E00FC54E7 /* yarn.c */; };
 		48844CCF2BD2746100FC54E7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 48844CCE2BD2746100FC54E7 /* Makefile */; };
+		48844CD22BD2B83200FC54E7 /* mySystem.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CD12BD2B83200FC54E7 /* mySystem.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -71,6 +72,8 @@
 		48844CCC2BD2746100FC54E7 /* gigz.spec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = gigz.spec; path = madler/gigz.spec; sourceTree = "<group>"; };
 		48844CCD2BD2746100FC54E7 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		48844CCE2BD2746100FC54E7 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = madler/Makefile; sourceTree = "<group>"; };
+		48844CD02BD2B83200FC54E7 /* mySystem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mySystem.h; sourceTree = "<group>"; };
+		48844CD12BD2B83200FC54E7 /* mySystem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mySystem.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +116,8 @@
 				48844CBC2BD2744E00FC54E7 /* yarn.c */,
 				48844CBA2BD2744E00FC54E7 /* yarn.h */,
 				48844CB72BD2744E00FC54E7 /* zopfli */,
+				48844CD02BD2B83200FC54E7 /* mySystem.h */,
+				48844CD12BD2B83200FC54E7 /* mySystem.c */,
 			);
 			path = madler;
 			sourceTree = "<group>";
@@ -231,6 +236,7 @@
 				48844CC42BD2744E00FC54E7 /* symbols.c in Sources */,
 				48844CBF2BD2744E00FC54E7 /* deflate.c in Sources */,
 				48844CC62BD2744E00FC54E7 /* util.c in Sources */,
+				48844CD22BD2B83200FC54E7 /* mySystem.c in Sources */,
 				48844CBD2BD2744E00FC54E7 /* blocksplitter.c in Sources */,
 				48844CC52BD2744E00FC54E7 /* tree.c in Sources */,
 				48844CC02BD2744E00FC54E7 /* hash.c in Sources */,
