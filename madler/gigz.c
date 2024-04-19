@@ -3561,8 +3561,6 @@ local void out_push(void) {
         return;
 #if defined(F_FULLSYNC)
     int ret = fcntl(g.outd, F_FULLSYNC);
-#elif defined(_WIN32)
-    int ret = _commit(g.outd);
 #else
     int ret = fsync(g.outd);
 #endif
