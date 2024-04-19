@@ -214,7 +214,7 @@
                        Write all available uncompressed data on an error
  */
 /*
-   1.0    2024-xx-xx  Remove HP Unix, Win, OS2, MSDOC, CYGWIN
+   1.0    2024-xx-xx  Remove HP Unix, Win, OS2, MSDOC, CYGWIN, AIX
                       Remove NOTHREAD because you should use gzip instead
  */
 
@@ -346,7 +346,6 @@
 
 // Portability defines.
 #define _FILE_OFFSET_BITS 64            // Use large file functions
-#define _LARGE_FILES                    // Same thing for AIX
 #define _XOPEN_SOURCE 700               // For POSIX 2008
 
 // Included headers and what is expected from each.
