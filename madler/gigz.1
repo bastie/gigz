@@ -1,9 +1,9 @@
-.TH PIGZ 1 "August 19, 2023"
+.TH GIGZ 1 "August 19, 2023"
 .SH NAME
-pigz, unpigz \- compress or expand files
+gigz, ungigz \- compress or expand files
 .SH SYNOPSIS
 .ll +8
-.B pigz
+.B gigz
 .RB [ " \-cdfhikKlLmMnNqrRtz0..9,11 " ]
 [
 .B -b
@@ -22,7 +22,7 @@ pigz, unpigz \- compress or expand files
 ]
 .ll -8
 .br
-.B unpigz
+.B ungigz
 .RB [ " \-cfhikKlLmMnNqrRtz " ]
 [
 .B -b
@@ -40,7 +40,7 @@ pigz, unpigz \- compress or expand files
 .I "name \&..."
 ]
 .SH DESCRIPTION
-.I Pigz
+.I Gigz
 compresses using threads to make use of multiple processors and cores.
 The input is broken up into 128 KB chunks with each compressed in parallel.
 The individual check value for each chunk is also calculated in parallel.
@@ -83,7 +83,7 @@ each with the nine-byte sequence (in hex): 00 00 FF FF 00 00 00 FF FF.
 .PP
 Decompression can't be parallelized, at least not without specially prepared
 deflate streams for that purpose.  As a result,
-.I pigz
+.I gigz
 uses a single thread
 (the main thread) for decompression, but will create three other threads for
 reading, writing, and check calculation, which can speed up decompression
@@ -97,14 +97,14 @@ or
 .PP
 All options on the command line are processed before any names are processed.
 If no names are provided on the command line, or if "-" is given as a name (but
-not after "--"), then the input is taken from stdin. If the GZIP or PIGZ
+not after "--"), then the input is taken from stdin. If the GZIP or GIGZ
 environment variables are set, then options are taken from their values before
-any command line options are processed, first from GZIP, then from PIGZ.
+any command line options are processed, first from GZIP, then from GIGZ.
 .PP
 Compressed files can be restored to their original form using
-.I pigz -d
+.I gigz -d
 or
-.I unpigz.
+.I ungigz.
 
 .SH OPTIONS
 .TP
@@ -167,7 +167,7 @@ List the contents of the compressed input.
 .TP
 .B -L --license
 Display the
-.I pigz
+.I gigz
 license and quit.
 .TP
 .B -m --no-time
@@ -216,7 +216,7 @@ Compress using the run length encoding strategy.
 Provide more verbose output.
 .TP
 .B -V --version
-Show the version of pigz. -vV also shows the zlib version.
+Show the version of gigz. -vV also shows the zlib version.
 .TP
 .B -z --zlib
 Compress to zlib (.zz) instead of gzip format.

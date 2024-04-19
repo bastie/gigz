@@ -22,12 +22,12 @@ mkdir -p $RPM_BUILD_ROOT
 make
 mkdir -p ${RPM_BUILD_ROOT}/usr/bin
 mkdir -p ${RPM_BUILD_ROOT}/usr/man/man1
-mv pigz unpigz ${RPM_BUILD_ROOT}/usr/bin
-mv pigz.1 ${RPM_BUILD_ROOT}/usr/man/man1
+mv gigz unpigz ${RPM_BUILD_ROOT}/usr/bin
+mv gigz.1 ${RPM_BUILD_ROOT}/usr/man/man1
 
 %files
 %defattr(-,root,root)
-/usr/bin/pigz
-/usr/bin/unpigz
+/usr/bin/gigz
+/usr/bin/ungigz
 %doc
-/usr/man/man1/pigz.1
+/usr/man/man1/gigz.1
