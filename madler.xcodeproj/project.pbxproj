@@ -68,7 +68,6 @@
 		48844CBB2BD2744E00FC54E7 /* pigz.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = pigz.c; sourceTree = "<group>"; };
 		48844CBC2BD2744E00FC54E7 /* yarn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = yarn.c; sourceTree = "<group>"; };
 		48844CCA2BD2746100FC54E7 /* pigz.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; name = pigz.1; path = madler/pigz.1; sourceTree = "<group>"; };
-		48844CCB2BD2746100FC54E7 /* pigz.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = pigz.pdf; path = madler/pigz.pdf; sourceTree = "<group>"; };
 		48844CCC2BD2746100FC54E7 /* pigz.spec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = pigz.spec; path = madler/pigz.spec; sourceTree = "<group>"; };
 		48844CCD2BD2746100FC54E7 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		48844CCE2BD2746100FC54E7 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = madler/Makefile; sourceTree = "<group>"; };
@@ -90,7 +89,6 @@
 			children = (
 				48844CCE2BD2746100FC54E7 /* Makefile */,
 				48844CCA2BD2746100FC54E7 /* pigz.1 */,
-				48844CCB2BD2746100FC54E7 /* pigz.pdf */,
 				48844CCC2BD2746100FC54E7 /* pigz.spec */,
 				48844CCD2BD2746100FC54E7 /* README */,
 				48844C942BD2731400FC54E7 /* madler */,

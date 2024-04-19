@@ -108,4 +108,4 @@ pigz.pdf: pigz.1
 all: pigz pigzj pigzt pigzn docs
 
 clean:
-	@rm -f *.o pigz unpigz pigzj pigzn pigzt pigz.c.gz pigz.c.zz pigz.c.zip
+	@rm -f *.o pigz unpigz pigzj pigzn pigzt pigz.c.gz pigz.c.zz pigz.c.zip pigz.pdf
