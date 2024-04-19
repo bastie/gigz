@@ -51,7 +51,7 @@ katajainen.o: $(ZOPFLI)katajainen.c $(ZOPFLI)katajainen.h
 symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 	$(CC) $(CFLAGS) -c $(ZOPFLI)symbols.c
 
-dev: gigz gigzj gigzt gigzn
+dev: gigz gigzj gigzt
 
 gigzj: gigzj.o yarn.o try.o
 	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o $(LIBS)
@@ -68,15 +68,6 @@ gigzt.o: gigz.c yarn.h try.h
 yarnt.o: yarn.c yarn.h
 	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o yarnt.o yarn.c
 
-gigzn: gigzn.o tryn.o $(ZOP)
-	$(CC) $(LDFLAGS) -o gigzn gigzn.o tryn.o $(ZOP) $(LIBS)
-
-gigzn.o: gigz.c try.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -DNOTHREAD -g -c -o gigzn.o gigz.c
-
-tryn.o: try.c try.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -DNOTHREAD -g -c -o tryn.o try.c
-
 test: gigz
 	./gigz -kf gigz.c ; ./gigz -t gigz.c.gz
 	./gigz -kfb 32 gigz.c ; ./gigz -t gigz.c.gz
@@ -90,22 +81,16 @@ test: gigz
 	(printf "w" | gzip ; printf "x") | ./gigz -cdf | wc -c | test `cat` -eq 2
 	(printf "w" | gzip ; printf "xy") | ./gigz -cdf | wc -c | test `cat` -eq 3
 	(printf "w" | gzip ; printf "xyz") | ./gigz -cdf | wc -c | test `cat` -eq 4
-	-@if test "`which compress | grep /`" != ""; then \
-	  echo 'compress -f < gigz.c | ./ungigz | cmp - gigz.c' ;\
-	  compress -f < gigz.c | ./ungigz | cmp - gigz.c ;\
-	fi
 	@rm -f gigz.c.gz gigz.c.zz gigz.c.zip
 
 tests: dev test
-	./gigzn -kf gigz.c ; ./gigz -t gigz.c.gz
-	@rm -f gigz.c.gz
 
 docs: gigz.pdf
 
 gigz.pdf: gigz.1
 	groff -mandoc -f H -T ps gigz.1 | ps2pdf - gigz.pdf
 
-all: gigz gigzj gigzt gigzn docs
+all: gigz gigzj gigzt docs
 
 clean:
 	@rm -f *.o gigz ungigz gigzj gigzn gigzt gigz.c.gz gigz.c.zz gigz.c.zip gigz.pdf

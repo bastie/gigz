@@ -1,3 +1,7 @@
+/* gigz.c -- parallel implementation of gzip for modern macOS machines
+ *
+ */
+
 /* pigz.c -- parallel implementation of gzip
  * Copyright (C) 2007-2023 Mark Adler
  * Version 2.8  19 Aug 2023  Mark Adler
@@ -210,7 +214,8 @@
                        Write all available uncompressed data on an error
  */
 /*
-   1.0    2024-xx-xx  Remove HP Unix compilant
+   1.0    2024-xx-xx  Remove HP Unix, Win, OS2, MSDOC, CYGWIN
+                      Remove NOTHREAD because you should use gzip instead
  */
 
 #define VERSION "gigz 1.0"
@@ -271,9 +276,7 @@
 
    pigz uses the POSIX pthread library for thread control and communication,
    through the yarn.h interface to yarn.c. yarn.c can be replaced with
-   equivalent implementations using other thread libraries. pigz can be
-   compiled with NOTHREAD #defined to not use threads at all (in which case
-   pigz will not be able to live up to the "parallel" in its name).
+   equivalent implementations using other thread libraries.
  */
 
 /*
@@ -405,11 +408,9 @@
                         // Z_DEFAULT_STRATEGY, Z_DEFLATED, Z_NO_FLUSH, Z_NULL,
                         // Z_OK, Z_SYNC_FLUSH, z_stream
 
-#ifndef NOTHREAD
-#  include "yarn.h"     // thread, launch(), join(), join_all(), lock,
+#include "yarn.h"     // thread, launch(), join(), join_all(), lock,
                         // new_lock(), possess(), twist(), wait_for(),
                         // release(), peek_lock(), free_lock(), yarn_name
-#endif
 
 #ifndef NOZOPFLI
 #  include "zopfli/src/zopfli/deflate.h"    // ZopfliDeflatePart(),
@@ -556,14 +557,12 @@ local struct {
     length_t out_tot;       // total bytes written to output
     unsigned long out_check;    // check value of output
 
-#ifndef NOTHREAD
     // globals for decompression parallel reading
     unsigned char in_buf2[EXT]; // second buffer for parallel reads
     size_t in_len;          // data waiting in next buffer
     int in_which;           // -1: start, 0: in_buf2, 1: in_buf
     lock *load_state;       // value = 0 to wait, 1 to read a buffer
     thread *load_thread;    // load_read() thread for joining
-#endif
 } g;
 
 local void message(char *fmt, va_list ap) {
@@ -605,20 +604,13 @@ local struct mem_track_s {
     size_t size;        // total size of current allocations
     size_t tot;         // maximum number of allocations
     size_t max;         // maximum size of allocations
-#ifndef NOTHREAD
     lock *lock;         // lock for access across threads
-#endif
     size_t have;        // number in array (possibly != num)
     void *mem[MAXMEM];  // sorted array of allocated pointers
 } mem_track;
 
-#ifndef NOTHREAD
 #  define mem_track_grab(m) possess((m)->lock)
 #  define mem_track_drop(m) release((m)->lock)
-#else
-#  define mem_track_grab(m)
-#  define mem_track_drop(m)
-#endif
 
 // Return the leftmost insert location of ptr in the sorted list mem->mem[],
 // which currently has mem->have elements. If ptr is already in the list, the
@@ -698,7 +690,6 @@ local void free_track(struct mem_track_s *mem, void *ptr) {
     }
 }
 
-#ifndef NOTHREAD
 local void *yarn_malloc(size_t size) {
     return malloc_track(&mem_track, size);
 }
@@ -706,7 +697,6 @@ local void *yarn_malloc(size_t size) {
 local void yarn_free(void *ptr) {
     free_track(&mem_track, ptr);
 }
-#endif
 
 local voidpf zlib_alloc(voidpf opaque, uInt items, uInt size) {
     return malloc_track(opaque, items * (size_t)size);
@@ -753,9 +743,7 @@ local struct log {
     char *msg;              // message
     struct log *next;       // next entry
 } *log_head, **log_tail = NULL;
-#ifndef NOTHREAD
   local lock *log_lock = NULL;
-#endif
 
 // Maximum log entry length.
 #define MAXMSG 256
@@ -768,11 +756,9 @@ local void log_init(void) {
         mem_track.num = 0;
         mem_track.max = 0;
         mem_track.have = 0;
-#ifndef NOTHREAD
         mem_track.lock = new_lock(0);
         yarn_mem(yarn_malloc, yarn_free);
         log_lock = new_lock(0);
-#endif
         log_head = NULL;
         log_tail = &log_head;
     }
@@ -794,15 +780,11 @@ local void log_add(char *fmt, ...) {
     me->msg = alloc(NULL, strlen(msg) + 1);
     strcpy(me->msg, msg);
     me->next = NULL;
-#ifndef NOTHREAD
     assert(log_lock != NULL);
     possess(log_lock);
-#endif
     *log_tail = me;
     log_tail = &(me->next);
-#ifndef NOTHREAD
     twist(log_lock, BY, +1);
-#endif
 }
 
 // Pull entry from trace log and print it, return false if empty.
@@ -812,22 +794,16 @@ local int log_show(void) {
 
     if (log_tail == NULL)
         return 0;
-#ifndef NOTHREAD
     possess(log_lock);
-#endif
     me = log_head;
     if (me == NULL) {
-#ifndef NOTHREAD
         release(log_lock);
-#endif
         return 0;
     }
     log_head = me->next;
     if (me->next == NULL)
         log_tail = &log_head;
-#ifndef NOTHREAD
     twist(log_lock, BY, -1);
-#endif
     diff.tv_usec = me->when.tv_usec - start.tv_usec;
     diff.tv_sec = me->when.tv_sec - start.tv_sec;
     if (diff.tv_usec < 0) {
@@ -847,21 +823,17 @@ local void log_free(void) {
     struct log *me;
 
     if (log_tail != NULL) {
-#ifndef NOTHREAD
         possess(log_lock);
-#endif
         while ((me = log_head) != NULL) {
             log_head = me->next;
             FREE(me->msg);
             FREE(me);
         }
-#ifndef NOTHREAD
         twist(log_lock, TO, 0);
         free_lock(log_lock);
         log_lock = NULL;
         yarn_mem(malloc, free);
         free_lock(mem_track.lock);
-#endif
         log_tail = NULL;
     }
 }
@@ -1393,7 +1365,6 @@ local unsigned long adler32_comb(unsigned long adler1, unsigned long adler2,
     return sum1 | (sum2 << 16);
 }
 
-#ifndef NOTHREAD
 // -- threaded portions of pigz --
 
 // -- pool of spaces for buffer management --
@@ -2220,8 +2191,6 @@ local void parallel_compress(void) {
     Trace(("-- write thread joined"));
 }
 
-#endif
-
 // Repeated code in single_compress to compress available input and write it.
 #define DEFLATE_WRITE(flush) \
     do { \
@@ -2493,7 +2462,6 @@ local void single_compress(int reset) {
 
 // --- decompression ---
 
-#ifndef NOTHREAD
 // Parallel read thread. If the state is 1, then read a buffer and set the
 // state to 0 when done, if the state is > 1, then end this thread.
 local void load_read(void *dummy) {
@@ -2532,7 +2500,6 @@ local void load_wait(void) {
     wait_for(g.load_state, TO_BE, 0);
     release(g.load_state);
 }
-#endif
 
 // load() is called when the input has been consumed in order to provide more
 // input data: load the input buffer with BUF or fewer bytes (fewer if at end
@@ -2547,7 +2514,6 @@ local size_t load(void) {
         return 0;
     }
 
-#ifndef NOTHREAD
     // if first time in or procs == 1, read a buffer to have something to
     // return, otherwise wait for the previous read job to complete
     if (g.procs > 1) {
@@ -2581,7 +2547,6 @@ local size_t load(void) {
         }
     }
     else
-#endif
     {
         // don't use threads -- simply read a buffer into g.in_buf
         g.in_left = readn(g.ind, g.in_next = g.in_buf, BUF);
@@ -2604,7 +2569,6 @@ local size_t load(void) {
 // Terminate the load() operation. Empty buffer, mark end, close file (if not
 // stdin), and free the name and comment obtained from the header, if present.
 local void load_end(void) {
-#ifndef NOTHREAD
     // if the read thread is running, then end it
     if (g.in_which != -1) {
         // wait for the previously requested read to complete and send the
@@ -2618,7 +2582,6 @@ local void load_end(void) {
         free_lock(g.load_state);
         g.in_which = -1;
     }
-#endif
     g.in_left = 0;
     g.in_short = 1;
     g.in_eof = 1;
@@ -2634,9 +2597,7 @@ local void in_init(void) {
     g.in_eof = 0;
     g.in_short = 0;
     g.in_tot = 0;
-#ifndef NOTHREAD
     g.in_which = -1;
-#endif
 }
 
 // Buffered reading macros for decompression and listing.
@@ -3171,11 +3132,9 @@ local void list_info(void) {
         return;
     }
 
-#ifndef NOTHREAD
     // wait for read thread to complete current read() operation, to permit
     // seeking and reading on g.ind here in the main thread
     load_wait();
-#endif
 
     // list zip file
     if (g.form > 1) {
@@ -3305,7 +3264,6 @@ local unsigned inb(void *desc, unsigned char **buf) {
 #define OUTSIZE 32768U      // must be at least 32K for inflateBack() window
 local unsigned char out_buf[OUTSIZE];
 
-#ifndef NOTHREAD
 // Output data for parallel write and check.
 local unsigned char out_copy[OUTSIZE];
 local size_t out_len;
@@ -3362,7 +3320,6 @@ local void outb_check(void *dummy) {
     }
     Trace(("-- exited decompress check thread"));
 }
-#endif
 
 // Call-back output function for inflateBack(). Wait for the last write and
 // check calculation to complete, copy the write buffer, and then alert the
@@ -3371,7 +3328,6 @@ local void outb_check(void *dummy) {
 local int outb(void *desc, unsigned char *buf, unsigned len) {
     (void)desc;
 
-#ifndef NOTHREAD
     static thread *wr, *ch;
 
     if (g.procs > 1) {
@@ -3413,7 +3369,6 @@ local int outb(void *desc, unsigned char *buf, unsigned len) {
         // next time this function is called
         return 0;
     }
-#endif
 
     // if just one process or no threads, then do it without threads
     if (len) {
@@ -4166,10 +4121,8 @@ local void process(char *path) {
             }
         }
     }
-#ifndef NOTHREAD
     else if (g.procs > 1)
         parallel_compress();
-#endif
     else
         single_compress(0);
     if (g.verbosity > 1) {
@@ -4203,12 +4156,8 @@ local void process(char *path) {
 local char *helptext[] = {
 "Usage: pigz [options] [files ...]",
 "  will compress files in place, adding the suffix '.gz'. If no files are",
-#ifdef NOTHREAD
-"  specified, stdin will be compressed to stdout. pigz does what gzip does.",
-#else
 "  specified, stdin will be compressed to stdout. pigz does what gzip does,",
 "  but spreads the work over multiple processors and cores when compressing.",
-#endif
 "",
 "Options:",
 #ifdef NOZOPFLI
@@ -4244,10 +4193,8 @@ local char *helptext[] = {
 #ifndef NOZOPFLI
 "  -O  --oneblock       Do not split into smaller blocks for -11",
 #endif
-#ifndef NOTHREAD
 "  -p, --processes n    Allow up to n compression threads (default is the",
 "                       number of online processors, or 8 if unknown)",
-#endif
 "  -q, --quiet          Print no messages, even on error",
 "  -r, --recursive      Process the contents of all subdirectories",
 "  -R, --rsyncable      Input-determined block locations for rsync",
@@ -4277,8 +4224,6 @@ local void help(void) {
     exit(0);
 }
 
-#ifndef NOTHREAD
-
 // Try to determine the number of processors.
 local int nprocs(int n) {
 #  ifdef _SC_NPROCESSORS_ONLN
@@ -4290,8 +4235,6 @@ local int nprocs(int n) {
 #  endif
     return n;
 }
-
-#endif
 
 // Set option defaults.
 local void defaults(void) {
@@ -4308,11 +4251,7 @@ local void defaults(void) {
 #endif
     g.block = 131072UL;             // 128K
     g.shift = x2nmodp(g.block, 3);
-#ifdef NOTHREAD
-    g.procs = 1;
-#else
     g.procs = nprocs(8);
-#endif
     g.rsync = 0;                    // don't do rsync blocking
     g.setdict = 1;                  // initialize dictionary each thread
     g.verbosity = 1;                // normal message level
@@ -4353,9 +4292,7 @@ local char *longopts[][2] = {
 // the new settings.
 local void new_opts(void) {
     single_compress(1);
-#ifndef NOTHREAD
     finish_jobs();
-#endif
 }
 
 // Verify that arg is only digits, and if so, return the decimal value.
@@ -4509,9 +4446,7 @@ local int option(char *arg) {
         if (get == 1) {
             n = num(arg);
             g.block = n << 10;                  // chunk size
-#ifndef NOTHREAD
             g.shift = x2nmodp(g.block, 3);
-#endif
             if (g.block < DICT)
                 throw(EINVAL, "block size too small (must be >= 32K)");
             if (n != g.block >> 10 ||
@@ -4527,10 +4462,6 @@ local int option(char *arg) {
                 throw(EINVAL, "invalid number of processes: %s", arg);
             if ((size_t)g.procs != n || INBUFS(g.procs) < 1)
                 throw(EINVAL, "too many processes: %s", arg);
-#ifdef NOTHREAD
-            if (g.procs > 1)
-                throw(EINVAL, "compiled without threads");
-#endif
         }
         else if (get == 3) {
             if (*arg == 0)
@@ -4555,12 +4486,10 @@ local int option(char *arg) {
     return 0;
 }
 
-#ifndef NOTHREAD
 // handle error received from yarn function
 local void cut_yarn(int err) {
     throw(err, "internal threads error");
 }
-#endif
 
 // Process command line arguments.
 int main(int argc, char **argv) {
@@ -4576,9 +4505,7 @@ int main(int argc, char **argv) {
         // initialize globals
         g.inf = NULL;
         g.inz = 0;
-#ifndef NOTHREAD
         g.in_which = -1;
-#endif
         g.alias = "-";
         g.outf = NULL;
         g.first = 1;
@@ -4592,10 +4519,8 @@ int main(int argc, char **argv) {
 
         // prepare for interrupts and logging
         signal(SIGINT, cut_short);
-#ifndef NOTHREAD
         yarn_prefix = g.prog;           // prefix for yarn error messages
         yarn_abort = cut_yarn;          // call on thread error
-#endif
 #ifdef PIGZ_DEBUG
         gettimeofday(&start, NULL);     // starting time for log entries
         log_init();                     // initialize logging

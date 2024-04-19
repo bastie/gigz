@@ -307,11 +307,7 @@
 #include <assert.h>
 #include <setjmp.h>
 
-/* If a POSIX pthread library is not available, then compile with NOTHREAD
-   defined. */
-#ifndef NOTHREAD
-#  include <pthread.h>
-#endif
+#include <pthread.h>
 
 /* The exposed names can be changed here. */
 #define ball_t try_ball_t_
