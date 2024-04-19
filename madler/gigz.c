@@ -348,8 +348,7 @@
 #define _FILE_OFFSET_BITS 64            // Use large file functions
 #define _XOPEN_SOURCE 700               // For POSIX 2008
 
-#define _DARWIN_C_SOURCE
-#include <sys/sysctl.h> //
+#include "mySystem.h"   // computer system informations
 
 
 // Included headers and what is expected from each.
@@ -3953,26 +3952,6 @@ local void help(void) {
     exit(0);
 }
 
-// Try to determine the number of processors.
-local int nprocs(int n) {
-  int64_t ret = 0;
-  size_t size = sizeof(ret);
-  
-  if (sysctlbyname("hw.logicalcpu_max", &ret, &size, NULL, 0) == -1) {
-#  ifdef _SC_NPROCESSORS_ONLN
-    n = (int)sysconf(_SC_NPROCESSORS_ONLN);
-#  else
-#    ifdef _SC_NPROC_ONLN
-    n = (int)sysconf(_SC_NPROC_ONLN);
-#    endif
-#  endif
-  }
-  else {
-    n = (int) ret;
-  }
-
-  return n;
-}
 
 // Set option defaults.
 local void defaults(void) {
@@ -3989,7 +3968,7 @@ local void defaults(void) {
 #endif
     g.block = 131072UL;             // 128K
     g.shift = x2nmodp(g.block, 3);
-    g.procs = nprocs(8);
+    g.procs = nprocs();
     g.rsync = 0;                    // don't do rsync blocking
     g.setdict = 1;                  // initialize dictionary each thread
     g.verbosity = 1;                // normal message level
