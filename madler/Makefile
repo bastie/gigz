@@ -51,22 +51,13 @@ katajainen.o: $(ZOPFLI)katajainen.c $(ZOPFLI)katajainen.h
 symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 	$(CC) $(CFLAGS) -c $(ZOPFLI)symbols.c
 
-dev: gigz gigzj gigzt
+dev: gigz gigzj
 
 gigzj: gigzj.o yarn.o try.o
 	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o $(LIBS)
 
 gigzj.o: gigz.c yarn.h try.h
 	$(CC) $(CFLAGS) -DNOZOPFLI -c -o gigzj.o gigz.c
-
-gigzt: gigzt.o yarnt.o try.o $(ZOP)
-	$(CC) $(LDFLAGS) -o gigzt gigzt.o yarnt.o try.o $(ZOP) $(LIBS)
-
-gigzt.o: gigz.c yarn.h try.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o gigzt.o gigz.c
-
-yarnt.o: yarn.c yarn.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o yarnt.o yarn.c
 
 test: gigz
 	./gigz -kf gigz.c ; ./gigz -t gigz.c.gz
@@ -90,7 +81,7 @@ docs: gigz.pdf
 gigz.pdf: gigz.1
 	groff -mandoc -f H -T ps gigz.1 | ps2pdf - gigz.pdf
 
-all: gigz gigzj gigzt docs
+all: gigz gigzj docs
 
 clean:
 	@rm -f *.o gigz ungigz gigzj gigzn gigzt gigz.c.gz gigz.c.zz gigz.c.zip gigz.pdf

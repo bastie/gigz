@@ -384,18 +384,6 @@
    typedef unsigned prefix_t;
 #endif
 
-#ifdef PIGZ_DEBUG
-#  if defined(__APPLE__)
-#    include <malloc/malloc.h>
-#    define MALLOC_SIZE(p) malloc_size(p)
-#  elif defined (__linux)
-#    include <malloc.h>
-#    define MALLOC_SIZE(p) malloc_usable_size(p)
-#  else
-#    define MALLOC_SIZE(p) (0)
-#  endif
-#endif
-
 #ifndef S_IFLNK
 #  define S_IFLNK 0
 #endif
@@ -592,134 +580,11 @@ local int grumble(char *fmt, ...) {
     return 0;
 }
 
-#ifdef PIGZ_DEBUG
-
-// Memory tracking.
-
-#define MAXMEM 131072   // maximum number of tracked pointers
-
-local struct mem_track_s {
-    size_t num;         // current number of allocations
-    size_t size;        // total size of current allocations
-    size_t tot;         // maximum number of allocations
-    size_t max;         // maximum size of allocations
-    lock *lock;         // lock for access across threads
-    size_t have;        // number in array (possibly != num)
-    void *mem[MAXMEM];  // sorted array of allocated pointers
-} mem_track;
-
-#  define mem_track_grab(m) possess((m)->lock)
-#  define mem_track_drop(m) release((m)->lock)
-
-// Return the leftmost insert location of ptr in the sorted list mem->mem[],
-// which currently has mem->have elements. If ptr is already in the list, the
-// returned value will point to its first occurrence. The return location will
-// be one after the last element if ptr is greater than all of the elements.
-local size_t search_track(struct mem_track_s *mem, void *ptr) {
-    ptrdiff_t left = 0;
-    ptrdiff_t right = mem->have - 1;
-    while (left <= right) {
-        ptrdiff_t mid = (left + right) >> 1;
-        if (mem->mem[mid] < ptr)
-            left = mid + 1;
-        else
-            right = mid - 1;
-    }
-    return left;
-}
-
-// Insert ptr in the sorted list mem->mem[] and update the memory allocation
-// statistics.
-local void insert_track(struct mem_track_s *mem, void *ptr) {
-    mem_track_grab(mem);
-    assert(mem->have < MAXMEM && "increase MAXMEM in source and try again");
-    size_t i = search_track(mem, ptr);
-    if (i < mem->have && mem->mem[i] == ptr)
-        complain("mem_track: duplicate pointer %p\n", ptr);
-    memmove(&mem->mem[i + 1], &mem->mem[i],
-            (mem->have - i) * sizeof(void *));
-    mem->mem[i] = ptr;
-    mem->have++;
-    mem->num++;
-    mem->size += MALLOC_SIZE(ptr);
-    if (mem->num > mem->tot)
-        mem->tot = mem->num;
-    if (mem->size > mem->max)
-        mem->max = mem->size;
-    mem_track_drop(mem);
-}
-
-// Find and delete ptr from the sorted list mem->mem[] and update the memory
-// allocation statistics.
-local void delete_track(struct mem_track_s *mem, void *ptr) {
-    mem_track_grab(mem);
-    size_t i = search_track(mem, ptr);
-    if (i < mem->num && mem->mem[i] == ptr) {
-        memmove(&mem->mem[i], &mem->mem[i + 1],
-                (mem->have - (i + 1)) * sizeof(void *));
-        mem->have--;
-    }
-    else
-        complain("mem_track: missing pointer %p\n", ptr);
-    mem->num--;
-    mem->size -= MALLOC_SIZE(ptr);
-    mem_track_drop(mem);
-}
-
-local void *malloc_track(struct mem_track_s *mem, size_t size) {
-    void *ptr = malloc(size);
-    if (ptr != NULL)
-        insert_track(mem, ptr);
-    return ptr;
-}
-
-local void *realloc_track(struct mem_track_s *mem, void *ptr, size_t size) {
-    if (ptr == NULL)
-        return malloc_track(mem, size);
-    delete_track(mem, ptr);
-    void *got = realloc(ptr, size);
-    insert_track(mem, got == NULL ? ptr : got);
-    return got;
-}
-
-local void free_track(struct mem_track_s *mem, void *ptr) {
-    if (ptr != NULL) {
-        delete_track(mem, ptr);
-        free(ptr);
-    }
-}
-
-local void *yarn_malloc(size_t size) {
-    return malloc_track(&mem_track, size);
-}
-
-local void yarn_free(void *ptr) {
-    free_track(&mem_track, ptr);
-}
-
-local voidpf zlib_alloc(voidpf opaque, uInt items, uInt size) {
-    return malloc_track(opaque, items * (size_t)size);
-}
-
-local void zlib_free(voidpf opaque, voidpf address) {
-    free_track(opaque, address);
-}
-
-#define REALLOC(p, s) realloc_track(&mem_track, p, s)
-#define FREE(p) free_track(&mem_track, p)
-#define OPAQUE (&mem_track)
-#define ZALLOC zlib_alloc
-#define ZFREE zlib_free
-
-#else // !PIGZ_DEBUG
-
 #define REALLOC realloc
 #define FREE free
 #define OPAQUE Z_NULL
 #define ZALLOC Z_NULL
 #define ZFREE Z_NULL
-
-#endif
 
 // Assured memory allocation.
 local void *alloc(void *ptr, size_t size) {
@@ -729,143 +594,8 @@ local void *alloc(void *ptr, size_t size) {
     return ptr;
 }
 
-#ifdef PIGZ_DEBUG
-
-// Logging.
-
-// Starting time of day for tracing.
-local struct timeval start;
-
-// Trace log.
-local struct log {
-    struct timeval when;    // time of entry
-    char *msg;              // message
-    struct log *next;       // next entry
-} *log_head, **log_tail = NULL;
-  local lock *log_lock = NULL;
-
-// Maximum log entry length.
-#define MAXMSG 256
-
-// Set up log (call from main thread before other threads launched).
-local void log_init(void) {
-    if (log_tail == NULL) {
-        mem_track.num = 0;
-        mem_track.size = 0;
-        mem_track.num = 0;
-        mem_track.max = 0;
-        mem_track.have = 0;
-        mem_track.lock = new_lock(0);
-        yarn_mem(yarn_malloc, yarn_free);
-        log_lock = new_lock(0);
-        log_head = NULL;
-        log_tail = &log_head;
-    }
-}
-
-// Add entry to trace log.
-local void log_add(char *fmt, ...) {
-    struct timeval now;
-    struct log *me;
-    va_list ap;
-    char msg[MAXMSG];
-
-    gettimeofday(&now, NULL);
-    me = alloc(NULL, sizeof(struct log));
-    me->when = now;
-    va_start(ap, fmt);
-    vsnprintf(msg, MAXMSG, fmt, ap);
-    va_end(ap);
-    me->msg = alloc(NULL, strlen(msg) + 1);
-    strcpy(me->msg, msg);
-    me->next = NULL;
-    assert(log_lock != NULL);
-    possess(log_lock);
-    *log_tail = me;
-    log_tail = &(me->next);
-    twist(log_lock, BY, +1);
-}
-
-// Pull entry from trace log and print it, return false if empty.
-local int log_show(void) {
-    struct log *me;
-    struct timeval diff;
-
-    if (log_tail == NULL)
-        return 0;
-    possess(log_lock);
-    me = log_head;
-    if (me == NULL) {
-        release(log_lock);
-        return 0;
-    }
-    log_head = me->next;
-    if (me->next == NULL)
-        log_tail = &log_head;
-    twist(log_lock, BY, -1);
-    diff.tv_usec = me->when.tv_usec - start.tv_usec;
-    diff.tv_sec = me->when.tv_sec - start.tv_sec;
-    if (diff.tv_usec < 0) {
-        diff.tv_usec += 1000000L;
-        diff.tv_sec--;
-    }
-    fprintf(stderr, "trace %ld.%06ld %s\n",
-            (long)diff.tv_sec, (long)diff.tv_usec, me->msg);
-    fflush(stderr);
-    FREE(me->msg);
-    FREE(me);
-    return 1;
-}
-
-// Release log resources (need to do log_init() to use again).
-local void log_free(void) {
-    struct log *me;
-
-    if (log_tail != NULL) {
-        possess(log_lock);
-        while ((me = log_head) != NULL) {
-            log_head = me->next;
-            FREE(me->msg);
-            FREE(me);
-        }
-        twist(log_lock, TO, 0);
-        free_lock(log_lock);
-        log_lock = NULL;
-        yarn_mem(malloc, free);
-        free_lock(mem_track.lock);
-        log_tail = NULL;
-    }
-}
-
-// Show entries until no more, free log.
-local void log_dump(void) {
-    if (log_tail == NULL)
-        return;
-    while (log_show())
-        ;
-    log_free();
-    if (mem_track.num || mem_track.size)
-        complain("memory leak: %zu allocs of %zu bytes total",
-                 mem_track.num, mem_track.size);
-    if (mem_track.max)
-        fprintf(stderr, "%zu bytes of memory used in %zu allocs\n",
-                mem_track.max, mem_track.tot);
-}
-
-// Debugging macro.
-#define Trace(x) \
-    do { \
-        if (g.verbosity > 2) { \
-            log_add x; \
-        } \
-    } while (0)
-
-#else // !PIGZ_DEBUG
-
 #define log_dump()
 #define Trace(x)
-
-#endif
 
 // Abort or catch termination signal.
 local void cut_short(int sig) {
@@ -4200,11 +3930,7 @@ local char *helptext[] = {
 "  -S, --suffix .sss    Use suffix .sss instead of .gz (for compression)",
 "  -t, --test           Test the integrity of the compressed input",
 "  -U, --rle            Use run-length encoding for compression",
-#ifdef PIGZ_DEBUG
-"  -v, --verbose        Provide more verbose output (-vv to debug)",
-#else
 "  -v, --verbose        Provide more verbose output",
-#endif
 "  -V  --version        Show the version of pigz",
 "  -Y  --synchronous    Force output file write to permanent storage",
 "  -z, --zlib           Compress to zlib (.zz) instead of gzip format",
@@ -4520,10 +4246,6 @@ int main(int argc, char **argv) {
         signal(SIGINT, cut_short);
         yarn_prefix = g.prog;           // prefix for yarn error messages
         yarn_abort = cut_yarn;          // call on thread error
-#ifdef PIGZ_DEBUG
-        gettimeofday(&start, NULL);     // starting time for log entries
-        log_init();                     // initialize logging
-#endif
 
         // set all options to defaults
         defaults();
