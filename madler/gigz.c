@@ -389,9 +389,6 @@
 #  elif defined (__linux)
 #    include <malloc.h>
 #    define MALLOC_SIZE(p) malloc_usable_size(p)
-#  elif defined (_WIN32) || defined(_WIN64)
-#    include <malloc.h>
-#    define MALLOC_SIZE(p) _msize(p)
 #  else
 #    define MALLOC_SIZE(p) (0)
 #  endif
@@ -425,13 +422,7 @@
 // For local functions and globals.
 #define local static
 
-// Prevent end-of-line conversions on MSDOSish operating systems.
-#if defined(MSDOS) || defined(OS2) || defined(_WIN32) || defined(__CYGWIN__)
-#  include <io.h>       // setmode(), O_BINARY, _commit() for _WIN32
-#  define SET_BINARY_MODE(fd) setmode(fd, O_BINARY)
-#else
-#  define SET_BINARY_MODE(fd)
-#endif
+#define SET_BINARY_MODE(fd)
 
 // Release an allocated pointer, if allocated, and mark as unallocated.
 #define RELEASE(ptr) \
