@@ -209,8 +209,11 @@
                        Save a modification time only for regular files
                        Write all available uncompressed data on an error
  */
+/*
+   1.0    2024-xx-xx  Remove HP Unix compilant
+ */
 
-#define VERSION "pigz 2.8"
+#define VERSION "gigz 1.0"
 
 /* To-do:
     - make source portable for Windows, VMS, etc. (see gzip source code)

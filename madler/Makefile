@@ -11,11 +11,11 @@ ZOP=deflate.o blocksplitter.o tree.o lz77.o cache.o hash.o util.o squeeze.o kata
 
 # use gcc and gmake on Solaris
 
-pigz: pigz.o yarn.o try.o $(ZOP)
-	$(CC) $(LDFLAGS) -o pigz pigz.o yarn.o try.o $(ZOP) $(LIBS)
-	ln -f pigz unpigz
+gigz: gigz.o yarn.o try.o $(ZOP)
+	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o $(ZOP) $(LIBS)
+	ln -f gigz ungigz
 
-pigz.o: pigz.c yarn.h try.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
+gigz.o: gigz.c yarn.h try.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
 
 yarn.o: yarn.c yarn.h
 
@@ -51,61 +51,61 @@ katajainen.o: $(ZOPFLI)katajainen.c $(ZOPFLI)katajainen.h
 symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 	$(CC) $(CFLAGS) -c $(ZOPFLI)symbols.c
 
-dev: pigz pigzj pigzt pigzn
+dev: gigz gigzj gigzt gigzn
 
-pigzj: pigzj.o yarn.o try.o
-	$(CC) $(LDFLAGS) -o pigzj pigzj.o yarn.o try.o $(LIBS)
+gigzj: gigzj.o yarn.o try.o
+	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o $(LIBS)
 
-pigzj.o: pigz.c yarn.h try.h
-	$(CC) $(CFLAGS) -DNOZOPFLI -c -o pigzj.o pigz.c
+gigzj.o: gigz.c yarn.h try.h
+	$(CC) $(CFLAGS) -DNOZOPFLI -c -o gigzj.o gigz.c
 
-pigzt: pigzt.o yarnt.o try.o $(ZOP)
-	$(CC) $(LDFLAGS) -o pigzt pigzt.o yarnt.o try.o $(ZOP) $(LIBS)
+gigzt: gigzt.o yarnt.o try.o $(ZOP)
+	$(CC) $(LDFLAGS) -o gigzt gigzt.o yarnt.o try.o $(ZOP) $(LIBS)
 
-pigzt.o: pigz.c yarn.h try.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o pigzt.o pigz.c
+gigzt.o: gigz.c yarn.h try.h
+	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o gigzt.o gigz.c
 
 yarnt.o: yarn.c yarn.h
 	$(CC) $(CFLAGS) -DPIGZ_DEBUG -g -c -o yarnt.o yarn.c
 
-pigzn: pigzn.o tryn.o $(ZOP)
-	$(CC) $(LDFLAGS) -o pigzn pigzn.o tryn.o $(ZOP) $(LIBS)
+gigzn: gigzn.o tryn.o $(ZOP)
+	$(CC) $(LDFLAGS) -o gigzn gigzn.o tryn.o $(ZOP) $(LIBS)
 
-pigzn.o: pigz.c try.h
-	$(CC) $(CFLAGS) -DPIGZ_DEBUG -DNOTHREAD -g -c -o pigzn.o pigz.c
+gigzn.o: gigz.c try.h
+	$(CC) $(CFLAGS) -DPIGZ_DEBUG -DNOTHREAD -g -c -o gigzn.o gigz.c
 
 tryn.o: try.c try.h
 	$(CC) $(CFLAGS) -DPIGZ_DEBUG -DNOTHREAD -g -c -o tryn.o try.c
 
-test: pigz
-	./pigz -kf pigz.c ; ./pigz -t pigz.c.gz
-	./pigz -kfb 32 pigz.c ; ./pigz -t pigz.c.gz
-	./pigz -kfp 1 pigz.c ; ./pigz -t pigz.c.gz
-	./pigz -kfz pigz.c ; ./pigz -t pigz.c.zz
-	./pigz -kfK pigz.c ; ./pigz -t pigz.c.zip
-	printf "" | ./pigz -cdf | wc -c | test `cat` -eq 0
-	printf "x" | ./pigz -cdf | wc -c | test `cat` -eq 1
-	printf "xy" | ./pigz -cdf | wc -c | test `cat` -eq 2
-	printf "xyz" | ./pigz -cdf | wc -c | test `cat` -eq 3
-	(printf "w" | gzip ; printf "x") | ./pigz -cdf | wc -c | test `cat` -eq 2
-	(printf "w" | gzip ; printf "xy") | ./pigz -cdf | wc -c | test `cat` -eq 3
-	(printf "w" | gzip ; printf "xyz") | ./pigz -cdf | wc -c | test `cat` -eq 4
+test: gigz
+	./gigz -kf gigz.c ; ./gigz -t gigz.c.gz
+	./gigz -kfb 32 gigz.c ; ./gigz -t gigz.c.gz
+	./gigz -kfp 1 gigz.c ; ./gigz -t gigz.c.gz
+	./gigz -kfz gigz.c ; ./gigz -t gigz.c.zz
+	./gigz -kfK gigz.c ; ./gigz -t gigz.c.zip
+	printf "" | ./gigz -cdf | wc -c | test `cat` -eq 0
+	printf "x" | ./gigz -cdf | wc -c | test `cat` -eq 1
+	printf "xy" | ./gigz -cdf | wc -c | test `cat` -eq 2
+	printf "xyz" | ./gigz -cdf | wc -c | test `cat` -eq 3
+	(printf "w" | gzip ; printf "x") | ./gigz -cdf | wc -c | test `cat` -eq 2
+	(printf "w" | gzip ; printf "xy") | ./gigz -cdf | wc -c | test `cat` -eq 3
+	(printf "w" | gzip ; printf "xyz") | ./gigz -cdf | wc -c | test `cat` -eq 4
 	-@if test "`which compress | grep /`" != ""; then \
-	  echo 'compress -f < pigz.c | ./unpigz | cmp - pigz.c' ;\
-	  compress -f < pigz.c | ./unpigz | cmp - pigz.c ;\
+	  echo 'compress -f < gigz.c | ./ungigz | cmp - gigz.c' ;\
+	  compress -f < gigz.c | ./ungigz | cmp - gigz.c ;\
 	fi
-	@rm -f pigz.c.gz pigz.c.zz pigz.c.zip
+	@rm -f gigz.c.gz gigz.c.zz gigz.c.zip
 
 tests: dev test
-	./pigzn -kf pigz.c ; ./pigz -t pigz.c.gz
-	@rm -f pigz.c.gz
+	./gigzn -kf gigz.c ; ./gigz -t gigz.c.gz
+	@rm -f gigz.c.gz
 
-docs: pigz.pdf
+docs: gigz.pdf
 
-pigz.pdf: pigz.1
-	groff -mandoc -f H -T ps pigz.1 | ps2pdf - pigz.pdf
+gigz.pdf: gigz.1
+	groff -mandoc -f H -T ps gigz.1 | ps2pdf - gigz.pdf
 
-all: pigz pigzj pigzt pigzn docs
+all: gigz gigzj gigzt gigzn docs
 
 clean:
-	@rm -f *.o pigz unpigz pigzj pigzn pigzt pigz.c.gz pigz.c.zz pigz.c.zip pigz.pdf
+	@rm -f *.o gigz ungigz gigzj gigzn gigzt gigz.c.gz gigz.c.zz gigz.c.zip gigz.pdf
