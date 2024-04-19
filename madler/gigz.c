@@ -4250,10 +4250,6 @@ int main(int argc, char **argv) {
         // set all options to defaults
         defaults();
 
-        // check zlib version
-        if (zlib_vernum() < 0x1230)
-           throw(EINVAL, "zlib version less than 1.2.3");
-
         // create CRC table, in case zlib compiled with dynamic tables
         get_crc_table();
 
@@ -4276,8 +4272,8 @@ int main(int argc, char **argv) {
             option(NULL);           // check for missing parameter
         }
 
-        // process user environment variable defaults in PIGZ as well
-        opts = getenv("PIGZ");
+        // process user environment variable defaults in GIGZ as well
+        opts = getenv("GIGZ");
         if (opts != NULL) {
             while (*opts) {
                 while (*opts == ' ' || *opts == '\t')
@@ -4289,14 +4285,14 @@ int main(int argc, char **argv) {
                 *p = 0;
                 if (!option(opts))
                     throw(EINVAL, "cannot provide files in "
-                                  "PIGZ environment variable");
+                                  "GIGZ environment variable");
                 opts = p + (n ? 1 : 0);
             }
             option(NULL);           // check for missing parameter
         }
 
         // decompress if named "unpigz" or "gunzip", to stdout if "*cat"
-        if (strcmp(g.prog, "unpigz") == 0 || strcmp(g.prog, "gunzip") == 0) {
+        if (strcmp(g.prog, "ungigz") == 0 || strcmp(g.prog, "unpigz") == 0 || strcmp(g.prog, "gunzip") == 0) {
             if (!g.decode)
                 g.headis >>= 2;
             g.decode = 1;
