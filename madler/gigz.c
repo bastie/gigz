@@ -348,6 +348,10 @@
 #define _FILE_OFFSET_BITS 64            // Use large file functions
 #define _XOPEN_SOURCE 700               // For POSIX 2008
 
+#define _DARWIN_C_SOURCE
+#include <sys/sysctl.h> //
+
+
 // Included headers and what is expected from each.
 #include <stdio.h>      // fflush(), fprintf(), fputs(), getchar(), putc(),
                         // puts(), printf(), vasprintf(), stderr, EOF, NULL,
@@ -3951,6 +3955,10 @@ local void help(void) {
 
 // Try to determine the number of processors.
 local int nprocs(int n) {
+  int64_t ret = 0;
+  size_t size = sizeof(ret);
+  
+  if (sysctlbyname("hw.logicalcpu_max", &ret, &size, NULL, 0) == -1) {
 #  ifdef _SC_NPROCESSORS_ONLN
     n = (int)sysconf(_SC_NPROCESSORS_ONLN);
 #  else
@@ -3958,7 +3966,12 @@ local int nprocs(int n) {
     n = (int)sysconf(_SC_NPROC_ONLN);
 #    endif
 #  endif
-    return n;
+  }
+  else {
+    n = (int) ret;
+  }
+
+  return n;
 }
 
 // Set option defaults.
