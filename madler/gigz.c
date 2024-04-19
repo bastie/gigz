@@ -215,11 +215,6 @@
 
 #define VERSION "gigz 1.0"
 
-/* To-do:
-    - make source portable for Windows, VMS, etc. (see gzip source code)
-    - make build portable (currently good for Unixish)
- */
-
 /*
    pigz compresses using threads to make use of multiple processors and cores.
    The input is broken up into 128 KB chunks with each compressed in parallel.
@@ -404,13 +399,6 @@
 
 #ifndef S_IFLNK
 #  define S_IFLNK 0
-#endif
-
-#ifdef __MINGW32__
-#  define chown(p,o,g) 0
-#  define utimes(p,t)  0
-#  define lstat(p,s)   stat(p,s)
-#  define _exit(s)     exit(s)
 #endif
 
 #include "zlib.h"       // deflateInit2(), deflateReset(), deflate(),
