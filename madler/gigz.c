@@ -1348,9 +1348,7 @@ static void compress_thread(void *dummy) {
     unsigned char *next;            // pointer for blocks, check value data
     size_t left;                    // input left to process
     size_t len;                     // remaining bytes to compress/check
-#if ZLIB_VERNUM >= 0x1260
     int bits;                       // deflate pending bits
-#endif
     int ret;                        // zlib return code
     ball_t err;                     // error information from throw()
 
