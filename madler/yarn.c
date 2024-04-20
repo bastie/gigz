@@ -49,16 +49,13 @@
 // Interface definition.
 #include "yarn.h"
 
-// Constants.
-#define local static            // for non-exported functions and globals
-
 // Error handling external globals, resettable by application.
 char *yarn_prefix = "yarn";
 void (*yarn_abort)(int) = NULL;
 
 
 // Immediately exit -- use for errors that shouldn't ever happen.
-local void fail(int err, char const *file, long line, char const *func) {
+static void fail(int err, char const *file, long line, char const *func) {
     fprintf(stderr, "%s: ", yarn_prefix);
     switch (err) {
         case EPERM:
@@ -95,8 +92,8 @@ local void fail(int err, char const *file, long line, char const *func) {
 // and free() are used, which are therefore assumed to be thread-safe.
 typedef void *(*malloc_t)(size_t);
 typedef void (*free_t)(void *);
-local malloc_t my_malloc_f = malloc;
-local free_t my_free = free;
+static malloc_t my_malloc_f = malloc;
+static free_t my_free = free;
 
 // Use user-supplied allocation routines instead of malloc() and free().
 void yarn_mem(malloc_t lease, free_t vacate) {
@@ -105,7 +102,7 @@ void yarn_mem(malloc_t lease, free_t vacate) {
 }
 
 // Memory allocation that cannot fail (from the point of view of the caller).
-local void *my_malloc(size_t size, char const *file, long line) {
+static void *my_malloc(size_t size, char const *file, long line) {
     void *block;
 
     if ((block = my_malloc_f(size)) == NULL)
@@ -220,12 +217,12 @@ struct thread_s {
 
 // List of threads launched but not joined, count of threads exited but not
 // joined (incremented by ignition() just before exiting).
-local lock threads_lock = {
+static lock threads_lock = {
     PTHREAD_MUTEX_INITIALIZER,
     PTHREAD_COND_INITIALIZER,
     0                           // number of threads exited but not joined
 };
-local thread *threads = NULL;       // list of extant threads
+static thread *threads = NULL;       // list of extant threads
 
 // Structure in which to pass the probe and its payload to ignition().
 struct capsule {
@@ -236,7 +233,7 @@ struct capsule {
 };
 
 // Mark the calling thread as done and alert join_all().
-local void reenter(void *arg) {
+static void reenter(void *arg) {
     struct capsule *capsule = arg;
 
     // find this thread in the threads list by matching the thread id
@@ -272,7 +269,7 @@ local void reenter(void *arg) {
 // itself as done in the threads list and alerts join_all() so that the thread
 // resources can be released. Use a cleanup stack so that the marking occurs
 // even if the thread is cancelled.
-local void *ignition(void *arg) {
+static void *ignition(void *arg) {
     struct capsule *capsule = arg;
 
     // run reenter() before leaving

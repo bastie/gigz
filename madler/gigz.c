@@ -216,6 +216,7 @@
 /*
    1.0    2024-xx-xx  Remove HP Unix, Win, OS2, MSDOC, CYGWIN, AIX
                       Remove NOTHREAD because you should use gzip instead
+                      Remove check of zlib versions because macOS provides
  */
 
 #define VERSION "gigz 1.0"
@@ -410,9 +411,6 @@
 
 #include "try.h"        // try, catch, always, throw, drop, punt, ball_t
 
-// For local functions and globals.
-#define local static
-
 #define SET_BINARY_MODE(fd)
 
 // Release an allocated pointer, if allocated, and mark as unallocated.
@@ -492,7 +490,7 @@
 #define EXT (BUF + CEN)     // provide enough room to unget a header
 
 // Globals (modified by main thread only when it's the only thread).
-local struct {
+static struct {
     int ret;                // pigz return code
     char *prog;             // name by which pigz was invoked
     int ind;                // input file descriptor
@@ -555,7 +553,7 @@ local struct {
     thread *load_thread;    // load_read() thread for joining
 } g;
 
-local void message(char *fmt, va_list ap) {
+static void message(char *fmt, va_list ap) {
     if (g.verbosity > 0) {
         fprintf(stderr, "%s: ", g.prog);
         vfprintf(stderr, fmt, ap);
@@ -565,7 +563,7 @@ local void message(char *fmt, va_list ap) {
 }
 
 // Display a complaint with the program name on stderr.
-local int complain(char *fmt, ...) {
+static int complain(char *fmt, ...) {
     g.ret = 1;
     va_list ap;
     va_start(ap, fmt);
@@ -575,7 +573,7 @@ local int complain(char *fmt, ...) {
 }
 
 // Same as complain(), but don't force a bad return code.
-local int grumble(char *fmt, ...) {
+static int grumble(char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     message(fmt, ap);
@@ -590,7 +588,7 @@ local int grumble(char *fmt, ...) {
 #define ZFREE Z_NULL
 
 // Assured memory allocation.
-local void *alloc(void *ptr, size_t size) {
+static void *alloc(void *ptr, size_t size) {
     ptr = REALLOC(ptr, size);
     if (ptr == NULL)
         throw(ENOMEM, "not enough memory");
@@ -601,7 +599,7 @@ local void *alloc(void *ptr, size_t size) {
 #define Trace(x)
 
 // Abort or catch termination signal.
-local void cut_short(int sig) {
+static void cut_short(int sig) {
     if (sig == SIGINT) {
         Trace(("termination by user"));
     }
@@ -626,7 +624,7 @@ local void cut_short(int sig) {
 // Compute next size up by multiplying by about 2**(1/3) and rounding to the
 // next power of 2 if close (three applications results in doubling). If small,
 // go up to at least 16, if overflow, go to max size_t value.
-local inline size_t grow(size_t size) {
+static inline size_t grow(size_t size) {
     size_t was, top;
     int shift;
 
@@ -646,7 +644,7 @@ local inline size_t grow(size_t size) {
 
 // Copy cpy[0..len-1] to *mem + off, growing *mem if necessary, where *size is
 // the allocated size of *mem. Return the number of bytes in the result.
-local inline size_t vmemcpy(char **mem, size_t *size, size_t off,
+static inline size_t vmemcpy(char **mem, size_t *size, size_t off,
                             void *cpy, size_t len) {
     size_t need;
 
@@ -669,12 +667,12 @@ local inline size_t vmemcpy(char **mem, size_t *size, size_t off,
 // Copy the zero-terminated string cpy to *str + off, growing *str if
 // necessary, where *size is the allocated size of *str. Return the length of
 // the string plus one.
-local inline size_t vstrcpy(char **str, size_t *size, size_t off, void *cpy) {
+static inline size_t vstrcpy(char **str, size_t *size, size_t off, void *cpy) {
     return vmemcpy(str, size, off, cpy, strlen(cpy) + 1);
 }
 
 // Read up to len bytes into buf, repeating read() calls as needed.
-local size_t readn(int desc, unsigned char *buf, size_t len) {
+static size_t readn(int desc, unsigned char *buf, size_t len) {
     ssize_t ret;
     size_t got;
 
@@ -693,7 +691,7 @@ local size_t readn(int desc, unsigned char *buf, size_t len) {
 }
 
 // Write len bytes, repeating write() calls as needed. Return len.
-local size_t writen(int desc, void const *buf, size_t len) {
+static size_t writen(int desc, void const *buf, size_t len) {
     char const *next = buf;
     size_t left = len;
 
@@ -710,7 +708,7 @@ local size_t writen(int desc, void const *buf, size_t len) {
 
 // Convert Unix time to MS-DOS date and time, assuming the current timezone.
 // (You got a better idea?)
-local unsigned long time2dos(time_t t) {
+static unsigned long time2dos(time_t t) {
     struct tm *tm;
     unsigned long dos;
 
@@ -744,7 +742,7 @@ typedef length_t val_t;
 // The total number of bytes written is returned. This makes the long and
 // tiresome zip format headers and trailers more readable, maintainable, and
 // verifiable.
-local unsigned put(int out, ...) {
+static unsigned put(int out, ...) {
     // compute the total number of bytes
     unsigned count = 0;
     int n;
@@ -789,7 +787,7 @@ local unsigned put(int out, ...) {
 #define LOW32 0xffffffff
 
 // Write a gzip, zlib, or zip header using the information in the globals.
-local length_t put_header(void) {
+static length_t put_header(void) {
     length_t len;
 
     if (g.form > 1) {               // zip
@@ -860,7 +858,7 @@ local length_t put_header(void) {
 }
 
 // Write a gzip, zlib, or zip trailer.
-local void put_trailer(length_t ulen, length_t clen,
+static void put_trailer(length_t ulen, length_t clen,
                        unsigned long check, length_t head) {
     if (g.form > 1) {               // zip
         // write Zip64 data descriptor, as promised in the local header
@@ -970,7 +968,7 @@ local void put_trailer(length_t ulen, length_t clen,
 }
 
 // Compute an Adler-32, allowing a size_t length.
-local unsigned long adler32z(unsigned long adler,
+static unsigned long adler32z(unsigned long adler,
                            unsigned char const *buf, size_t len) {
     while (len > UINT_MAX && buf != NULL) {
         adler = adler32(adler, buf, UINT_MAX);
@@ -981,7 +979,7 @@ local unsigned long adler32z(unsigned long adler,
 }
 
 // Compute a CRC-32, allowing a size_t length.
-local unsigned long crc32z(unsigned long crc,
+static unsigned long crc32z(unsigned long crc,
                            unsigned char const *buf, size_t len) {
     while (len > UINT_MAX && buf != NULL) {
         crc = crc32(crc, buf, UINT_MAX);
@@ -1008,7 +1006,7 @@ local unsigned long crc32z(unsigned long crc,
 
 // Return a(x) multiplied by b(x) modulo p(x), where p(x) is the CRC
 // polynomial, reflected. For speed, this requires that a not be zero.
-local crc_t multmodp(crc_t a, crc_t b) {
+static crc_t multmodp(crc_t a, crc_t b) {
     crc_t m = (crc_t)1 << 31;
     crc_t p = 0;
     for (;;) {
@@ -1024,7 +1022,7 @@ local crc_t multmodp(crc_t a, crc_t b) {
 }
 
 // Table of x^2^n modulo p(x).
-local const crc_t x2n_table[] = {
+static const crc_t x2n_table[] = {
     0x40000000, 0x20000000, 0x08000000, 0x00800000, 0x00008000,
     0xedb88320, 0xb1e6b092, 0xa06a2517, 0xed627dae, 0x88d14467,
     0xd7bbfe6a, 0xec447f11, 0x8e7ea170, 0x6427800e, 0x4d47bae0,
@@ -1034,7 +1032,7 @@ local const crc_t x2n_table[] = {
     0xc40ba6d0, 0xc4e22c3c};
 
 // Return x^(n*2^k) modulo p(x).
-local crc_t x2nmodp(size_t n, unsigned k) {
+static crc_t x2nmodp(size_t n, unsigned k) {
     crc_t p = (crc_t)1 << 31;       // x^0 == 1
     while (n) {
         if (n & 1)
@@ -1047,7 +1045,7 @@ local crc_t x2nmodp(size_t n, unsigned k) {
 
 // This uses the pre-computed g.shift value most of the time. Only the last
 // combination requires a new x2nmodp() calculation.
-local unsigned long crc32_comb(unsigned long crc1, unsigned long crc2,
+static unsigned long crc32_comb(unsigned long crc1, unsigned long crc2,
                                size_t len2) {
     return multmodp(len2 == g.block ? g.shift : x2nmodp(len2, 3), crc1) ^ crc2;
 }
@@ -1055,7 +1053,7 @@ local unsigned long crc32_comb(unsigned long crc1, unsigned long crc2,
 #define BASE 65521U     // largest prime smaller than 65536
 #define LOW16 0xffff    // mask lower 16 bits
 
-local unsigned long adler32_comb(unsigned long adler1, unsigned long adler2,
+static unsigned long adler32_comb(unsigned long adler1, unsigned long adler2,
                                  size_t len2) {
     unsigned long sum1;
     unsigned long sum2;
@@ -1108,7 +1106,7 @@ struct pool {
 // Initialize a pool (pool structure itself provided, not allocated). The limit
 // is the maximum number of spaces in the pool, or -1 to indicate no limit,
 // i.e., to never wait for a buffer to return to the pool.
-local void new_pool(struct pool *pool, size_t size, int limit) {
+static void new_pool(struct pool *pool, size_t size, int limit) {
     pool->have = new_lock(0);
     pool->head = NULL;
     pool->size = size;
@@ -1118,7 +1116,7 @@ local void new_pool(struct pool *pool, size_t size, int limit) {
 
 // Get a space from a pool. The use count is initially set to one, so there is
 // no need to call use_space() for the first use.
-local struct space *get_space(struct pool *pool) {
+static struct space *get_space(struct pool *pool) {
     struct space *space;
 
     // if can't create any more, wait for a space to show up
@@ -1153,7 +1151,7 @@ local struct space *get_space(struct pool *pool) {
 }
 
 // Increase the size of the buffer in space.
-local void grow_space(struct space *space) {
+static void grow_space(struct space *space) {
     size_t more;
 
     // compute next size up
@@ -1168,7 +1166,7 @@ local void grow_space(struct space *space) {
 
 // Increment the use count to require one more drop before returning this space
 // to the pool.
-local void use_space(struct space *space) {
+static void use_space(struct space *space) {
     long use;
 
     possess(space->use);
@@ -1178,7 +1176,7 @@ local void use_space(struct space *space) {
 }
 
 // Drop a space, returning it to the pool if the use count is zero.
-local void drop_space(struct space *space) {
+static void drop_space(struct space *space) {
     long use;
     struct pool *pool;
 
@@ -1199,7 +1197,7 @@ local void drop_space(struct space *space) {
 
 // Free the memory and lock resources of a pool. Return number of spaces for
 // debugging and resource usage measurement.
-local int free_pool(struct pool *pool) {
+static int free_pool(struct pool *pool) {
     int count;
     struct space *space;
 
@@ -1219,10 +1217,10 @@ local int free_pool(struct pool *pool) {
 }
 
 // Input and output buffer pools.
-local struct pool in_pool;
-local struct pool out_pool;
-local struct pool dict_pool;
-local struct pool lens_pool;
+static struct pool in_pool;
+static struct pool out_pool;
+static struct pool dict_pool;
+static struct pool lens_pool;
 
 // -- parallel compression --
 
@@ -1241,21 +1239,21 @@ struct job {
 };
 
 // List of compress jobs (with tail for appending to list).
-local lock *compress_have = NULL;   // number of compress jobs waiting
-local struct job *compress_head, **compress_tail;
+static lock *compress_have = NULL;   // number of compress jobs waiting
+static struct job *compress_head, **compress_tail;
 
 // List of write jobs.
-local lock *write_first;            // lowest sequence number in list
-local struct job *write_head;
+static lock *write_first;            // lowest sequence number in list
+static struct job *write_head;
 
 // Number of compression threads running.
-local int cthreads = 0;
+static int cthreads = 0;
 
 // Write thread if running.
-local thread *writeth = NULL;
+static thread *writeth = NULL;
 
 // Setup job lists (call from main thread).
-local void setup_jobs(void) {
+static void setup_jobs(void) {
     // set up only if not already set up
     if (compress_have != NULL)
         return;
@@ -1278,7 +1276,7 @@ local void setup_jobs(void) {
 
 // Command the compress threads to all return, then join them all (call from
 // main thread), free all the thread-related resources.
-local void finish_jobs(void) {
+static void finish_jobs(void) {
     struct job job;
     int caught;
 
@@ -1318,7 +1316,7 @@ local void finish_jobs(void) {
 // out->len, grow the size of the buffer (out->size) if necessary. Respect the
 // size limitations of the zlib stream data types (size_t may be larger than
 // unsigned).
-local void deflate_engine(z_stream *strm, struct space *out, int flush) {
+static void deflate_engine(z_stream *strm, struct space *out, int flush) {
     size_t room;
 
     do {
@@ -1340,7 +1338,7 @@ local void deflate_engine(z_stream *strm, struct space *out, int flush) {
 // results. Keep looking for more jobs, returning when a job is found with a
 // sequence number of -1 (leave that job in the list for other incarnations to
 // find).
-local void compress_thread(void *dummy) {
+static void compress_thread(void *dummy) {
     struct job *job;                // job pulled and working on
     struct job *here, **prior;      // pointers for inserting in write list
     unsigned long check;            // check value of input
@@ -1608,7 +1606,7 @@ local void compress_thread(void *dummy) {
 // Collect the write jobs off of the list in sequence order and write out the
 // compressed data until the last chunk is written. Also write the header and
 // trailer and combine the individual check values of the input buffers.
-local void write_thread(void *dummy) {
+static void write_thread(void *dummy) {
     long seq;                       // next sequence number looking for
     struct job *job;                // job pulled and working on
     size_t len;                     // input length
@@ -1684,7 +1682,7 @@ local void write_thread(void *dummy) {
 }
 
 // Encode a hash hit to the block lengths list. hit == 0 ends the list.
-local void append_len(struct job *job, size_t len) {
+static void append_len(struct job *job, size_t len) {
     struct space *lens;
 
     assert(len < 539000896UL);
@@ -1719,7 +1717,7 @@ local void append_len(struct job *job, size_t len) {
 // value calculations and one other thread for writing the output. Compress
 // threads will be launched and left running (waiting actually) to support
 // subsequent calls of parallel_compress().
-local void parallel_compress(void) {
+static void parallel_compress(void) {
     long seq;                       // sequence number
     struct space *curr;             // input data to compress
     struct space *next;             // input data that follows curr
@@ -1909,7 +1907,7 @@ local void parallel_compress(void) {
 // Do a simple compression in a single thread from ind to outd. If reset is
 // true, instead free the memory that was allocated and retained for input,
 // output, and deflate.
-local void single_compress(int reset) {
+static void single_compress(int reset) {
     size_t got;                     // amount of data in in[]
     size_t more;                    // amount of data in next[] (0 if eof)
     size_t start;                   // start of data in next[]
@@ -2162,7 +2160,7 @@ local void single_compress(int reset) {
 
 // Parallel read thread. If the state is 1, then read a buffer and set the
 // state to 0 when done, if the state is > 1, then end this thread.
-local void load_read(void *dummy) {
+static void load_read(void *dummy) {
     size_t len;
     ball_t err;                     // error information from throw()
 
@@ -2191,7 +2189,7 @@ local void load_read(void *dummy) {
 
 // Wait for load_read() to complete the current read operation. If the
 // load_read() thread is not active, then return immediately.
-local void load_wait(void) {
+static void load_wait(void) {
     if (g.in_which == -1)
         return;
     possess(g.load_state);
@@ -2204,7 +2202,7 @@ local void load_wait(void) {
 // of file) from the file g.ind, set g.in_next to point to the g.in_left bytes
 // read, update g.in_tot, and return g.in_left. g.in_eof is set to true when
 // g.in_left has gone to zero and there is no more data left to read.
-local size_t load(void) {
+static size_t load(void) {
     // if already detected end of file, do nothing
     if (g.in_short) {
         g.in_eof = 1;
@@ -2266,7 +2264,7 @@ local size_t load(void) {
 
 // Terminate the load() operation. Empty buffer, mark end, close file (if not
 // stdin), and free the name and comment obtained from the header, if present.
-local void load_end(void) {
+static void load_end(void) {
     // if the read thread is running, then end it
     if (g.in_which != -1) {
         // wait for the previously requested read to complete and send the
@@ -2290,7 +2288,7 @@ local void load_end(void) {
 }
 
 // Initialize for reading new input.
-local void in_init(void) {
+static void in_init(void) {
     g.in_left = 0;
     g.in_eof = 0;
     g.in_short = 0;
@@ -2360,7 +2358,7 @@ local void in_init(void) {
 
 // Convert MS-DOS date and time to a Unix time, assuming current timezone.
 // (You got a better idea?)
-local time_t dos2time(unsigned long dos) {
+static time_t dos2time(unsigned long dos) {
     struct tm tm;
 
     if (dos == 0)
@@ -2376,12 +2374,12 @@ local time_t dos2time(unsigned long dos) {
 }
 
 // Convert an unsigned 32-bit integer to signed, even if long > 32 bits.
-local long tolong(unsigned long val) {
+static long tolong(unsigned long val) {
     return (long)(val & 0x7fffffffUL) - (long)(val & 0x80000000UL);
 }
 
 // Process zip extra field to extract zip64 lengths and Unix mod time.
-local int read_extra(unsigned len, int save) {
+static int read_extra(unsigned len, int save) {
     unsigned id, size, tmp2;
     unsigned long tmp4;
 
@@ -2442,7 +2440,7 @@ local int read_extra(unsigned len, int save) {
 // If the return value is not negative, then get_header() sets g.form to
 // indicate gzip (0), zlib (1), or zip (2, or 3 if the entry is followed by a
 // data descriptor), and the input points to the first byte of compressed data.
-local int get_header(int save) {
+static int get_header(int save) {
     unsigned magic;             // magic header
     unsigned method;            // compression method
     unsigned flags;             // header flags
@@ -2584,7 +2582,7 @@ local int get_header(int save) {
 // the next signature is another local file header. If listing verbosely, then
 // search the remainder of the zip file for the central file header
 // corresponding to the first zip entry, and save the file comment, if any.
-local int more_zip_entries(void) {
+static int more_zip_entries(void) {
     unsigned long sig;
     int ret, n;
     unsigned char *first;
@@ -2699,7 +2697,7 @@ local int more_zip_entries(void) {
 // --- list contents of compressed input (gzip, zlib, or lzw) ---
 
 // Find standard compressed file suffix, return length of suffix.
-local size_t compressed_suffix(char *nm) {
+static size_t compressed_suffix(char *nm) {
     size_t len;
 
     len = strlen(nm);
@@ -2731,7 +2729,7 @@ local size_t compressed_suffix(char *nm) {
 #define NAMEMAX2 16     // name display limit at verbosity 2
 
 // Print gzip, lzw, zlib, or zip file information.
-local void show_info(int method, unsigned long check, length_t len, int cont) {
+static void show_info(int method, unsigned long check, length_t len, int cont) {
     size_t max;             // maximum name length for current verbosity
     size_t n;               // name length without suffix
     time_t now;             // for getting current year
@@ -2810,7 +2808,7 @@ local void show_info(int method, unsigned long check, length_t len, int cont) {
 // List content information about the gzip file at ind (only works if the gzip
 // file contains a single gzip stream with no junk at the end, and only works
 // well if the uncompressed length is less than 4 GB).
-local void list_info(void) {
+static void list_info(void) {
     int method;             // get_header() return value
     size_t n;               // available trailer bytes
     off_t at;               // used to calculate compressed length
@@ -2929,7 +2927,7 @@ local void list_info(void) {
 
 // --- copy input to output (when acting like cat) ---
 
-local void cat(void) {
+static void cat(void) {
     // copy the first header byte read, if any
     if (g.magic1 != -1) {
         unsigned char buf[1] = {g.magic1};
@@ -2947,7 +2945,7 @@ local void cat(void) {
 // --- decompress deflate input ---
 
 // Call-back input function for inflateBack().
-local unsigned inb(void *desc, unsigned char **buf) {
+static unsigned inb(void *desc, unsigned char **buf) {
     (void)desc;
     if (g.in_left == 0)
         load();
@@ -2960,18 +2958,18 @@ local unsigned inb(void *desc, unsigned char **buf) {
 
 // Output buffers and window for infchk() and unlzw().
 #define OUTSIZE 32768U      // must be at least 32K for inflateBack() window
-local unsigned char out_buf[OUTSIZE];
+static unsigned char out_buf[OUTSIZE];
 
 // Output data for parallel write and check.
-local unsigned char out_copy[OUTSIZE];
-local size_t out_len;
+static unsigned char out_copy[OUTSIZE];
+static size_t out_len;
 
 // outb threads states.
-local lock *outb_write_more = NULL;
-local lock *outb_check_more;
+static lock *outb_write_more = NULL;
+static lock *outb_check_more;
 
 // Output write thread.
-local void outb_write(void *dummy) {
+static void outb_write(void *dummy) {
     size_t len;
     ball_t err;                     // error information from throw()
 
@@ -2996,7 +2994,7 @@ local void outb_write(void *dummy) {
 }
 
 // Output check thread.
-local void outb_check(void *dummy) {
+static void outb_check(void *dummy) {
     size_t len;
     ball_t err;                     // error information from throw()
 
@@ -3023,7 +3021,7 @@ local void outb_check(void *dummy) {
 // check calculation to complete, copy the write buffer, and then alert the
 // write and check threads and return for more decompression while that's going
 // on (or just write and check if no threads or if proc == 1).
-local int outb(void *desc, unsigned char *buf, unsigned len) {
+static int outb(void *desc, unsigned char *buf, unsigned len) {
     (void)desc;
 
     static thread *wr, *ch;
@@ -3087,7 +3085,7 @@ local int outb(void *desc, unsigned char *buf, unsigned len) {
 // decode != 1, in which case just test ind, and then also list if list != 0;
 // look for and decode multiple, concatenated gzip and/or zlib streams; read
 // and check the gzip, zlib, or zip trailer.
-local void infchk(void) {
+static void infchk(void) {
     int ret, cont, more;
     unsigned long check, len, ktot;
     z_stream strm;
@@ -3276,7 +3274,7 @@ typedef unsigned long bits_t;
 
 // Decompress a compress (LZW) file from ind to outd. The compress magic header
 // (two bytes) has already been read and verified.
-local void unlzw(void) {
+static void unlzw(void) {
     unsigned bits;              // current bits per code (9..16)
     unsigned mask;              // mask for current bits codes = (1<<bits)-1
     bits_t buf;                 // bit buffer (need 23 bits)
@@ -3470,7 +3468,7 @@ local void unlzw(void) {
 // --- file processing ---
 
 // Extract file name from path.
-local char *justname(char *path) {
+static char *justname(char *path) {
     char *p;
 
     p = strrchr(path, '/');
@@ -3481,7 +3479,7 @@ local char *justname(char *path) {
 // errors are reported. The mode bits, including suid, sgid, and the sticky bit
 // are copied (if allowed), the owner's user id and group id are copied (again
 // if allowed), and the access and modify times are copied.
-local int copymeta(char *from, char *to) {
+static int copymeta(char *from, char *to) {
     struct stat st;
     struct timeval times[2];
 
@@ -3505,7 +3503,7 @@ local int copymeta(char *from, char *to) {
 }
 
 // Set the access and modify times of fd to t.
-local void touch(char *path, time_t t) {
+static void touch(char *path, time_t t) {
     struct timeval times[2];
 
     times[0].tv_sec = t;
@@ -3522,7 +3520,7 @@ local void touch(char *path, time_t t) {
 // fcntl(fd, F_FULLSYNC) on the other hand, available in macOS only, will
 // request and wait for the device to write out its buffered data to permanent
 // storage. On Windows, _commit() is used.
-local void out_push(void) {
+static void out_push(void) {
     if (g.outd == -1)
         return;
 #if defined(F_FULLSYNC)
@@ -3536,7 +3534,7 @@ local void out_push(void) {
 
 // Process provided input file, or stdin if path is NULL. process() can call
 // itself for recursive directory processing.
-local void process(char *path) {
+static void process(char *path) {
     volatile int method = -1;       // get_header() return value
     size_t len;                     // length of base name (minus suffix)
     struct stat st;                 // to get file type and mod time
@@ -3849,7 +3847,7 @@ local void process(char *path) {
     RELEASE(g.outf);
 }
 
-local char *helptext[] = {
+static char *helptext[] = {
 "Usage: pigz [options] [files ...]",
 "  will compress files in place, adding the suffix '.gz'. If no files are",
 "  specified, stdin will be compressed to stdout. pigz does what gzip does,",
@@ -3905,7 +3903,7 @@ local char *helptext[] = {
 };
 
 // Display the help text above.
-local void help(void) {
+static void help(void) {
     int n;
 
     if (g.verbosity == 0)
@@ -3918,7 +3916,7 @@ local void help(void) {
 
 
 // Set option defaults.
-local void defaults(void) {
+static void defaults(void) {
     g.level = Z_DEFAULT_COMPRESSION;
     g.strategy = Z_DEFAULT_STRATEGY;
 #ifndef NOZOPFLI
@@ -3952,7 +3950,7 @@ local void defaults(void) {
 }
 
 // Long options conversion to short options.
-local char *longopts[][2] = {
+static char *longopts[][2] = {
     {"LZW", "Z"}, {"lzw", "Z"}, {"alias", "A"}, {"ascii", "a"}, {"best", "9"},
     {"bits", "Z"}, {"blocksize", "b"}, {"decompress", "d"}, {"fast", "1"},
     {"force", "f"}, {"comment", "C"},
@@ -3971,13 +3969,13 @@ local char *longopts[][2] = {
 // Either new buffer size, new compression level, or new number of processes.
 // Get rid of old buffers and threads to force the creation of new ones with
 // the new settings.
-local void new_opts(void) {
+static void new_opts(void) {
     single_compress(1);
     finish_jobs();
 }
 
 // Verify that arg is only digits, and if so, return the decimal value.
-local size_t num(char *arg) {
+static size_t num(char *arg) {
     char *str = arg;
     size_t val = 0;
 
@@ -3993,7 +3991,7 @@ local size_t num(char *arg) {
 }
 
 // Process an argument, return true if it is an option (not a filename)
-local int option(char *arg) {
+static int option(char *arg) {
     static int get = 0;     // if not zero, look for option parameter
     char bad[3] = "-X";     // for error messages (X is replaced)
 
@@ -4168,7 +4166,7 @@ local int option(char *arg) {
 }
 
 // handle error received from yarn function
-local void cut_yarn(int err) {
+static void cut_yarn(int err) {
     throw(err, "internal threads error");
 }
 
