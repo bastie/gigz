@@ -55,8 +55,8 @@ symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 
 dev: gigz gigzj
 
-gigzj: gigzj.o yarn.o try.o
-	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o $(LIBS)
+gigzj: gigzj.o yarn.o try.o mySystem.o
+	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o mySystem.o $(LIBS)
 
 gigzj.o: gigz.c yarn.h try.h
 	$(CC) $(CFLAGS) -DNOZOPFLI -c -o gigzj.o gigz.c
