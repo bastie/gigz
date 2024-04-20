@@ -7,7 +7,7 @@
 #include "mySystem.h"
 
 // Try to determine the number of processors.
-int nprocs(void) {
+int getMaxNumbersOfThreads(void) {
   int processorCount = 1;
   int64_t ret = 0;
   size_t size = sizeof(ret);

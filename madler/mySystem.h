@@ -11,6 +11,6 @@
 #define _DARWIN_C_SOURCE
 #include <sys/sysctl.h> //
 
-int nprocs(void);
+int getMaxNumbersOfThreads(void);
 
 #endif /* mySystem_h */

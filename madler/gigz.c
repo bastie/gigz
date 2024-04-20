@@ -521,7 +521,7 @@ static struct {
     ZopfliOptions zopts;    // zopfli compression options
 #endif
     int rsync;              // true for rsync blocking
-    int procs;              // maximum number of compression threads (>= 1)
+    int maxNumbersOfThreads;// maximum number of compression threads (>= 1)
     int setdict;            // true to initialize dictionary in each thread
     size_t block;           // uncompressed input size per thread (>= 32K)
     crc_t shift;            // pre-calculated CRC-32 shift for length block
@@ -1271,7 +1271,7 @@ static void setup_jobs(void) {
     // initialize buffer pools (initial size for out_pool not critical, since
     // buffers will be grown in size if needed -- the initial size chosen to
     // make this unlikely, the same for lens_pool)
-    new_pool(&in_pool, g.block, INBUFS(g.procs));
+    new_pool(&in_pool, g.block, INBUFS(g.maxNumbersOfThreads));
     new_pool(&out_pool, OUTPOOL(g.block), -1);
     new_pool(&dict_pool, DICT, -1);
     new_pool(&lens_pool, g.block >> (RSYNCBITS - 1), -1);
@@ -1872,7 +1872,7 @@ static void parallel_compress(void) {
             throw(ERANGE, "overflow");
 
         // start another compress thread if needed
-        if (cthreads < seq && cthreads < g.procs) {
+        if (cthreads < seq && cthreads < g.maxNumbersOfThreads) {
             (void)launch(compress_thread, NULL);
             cthreads++;
         }
@@ -2213,7 +2213,7 @@ static size_t load(void) {
 
     // if first time in or procs == 1, read a buffer to have something to
     // return, otherwise wait for the previous read job to complete
-    if (g.procs > 1) {
+    if (g.maxNumbersOfThreads > 1) {
         // if first time, fire up the read thread, ask for a read
         if (g.in_which == -1) {
             g.in_which = 1;
@@ -3027,7 +3027,7 @@ static int outb(void *desc, unsigned char *buf, unsigned len) {
 
     static thread *wr, *ch;
 
-    if (g.procs > 1) {
+    if (g.maxNumbersOfThreads > 1) {
         // if first time, initialize state and launch threads
         if (outb_write_more == NULL) {
             outb_write_more = new_lock(0);
@@ -3816,7 +3816,7 @@ static void process(char *path) {
             }
         }
     }
-    else if (g.procs > 1)
+    else if (g.maxNumbersOfThreads > 1)
         parallel_compress();
     else
         single_compress(0);
@@ -3931,7 +3931,7 @@ static void defaults(void) {
 #endif
     g.block = 131072UL;             // 128K
     g.shift = x2nmodp(g.block, 3);
-    g.procs = nprocs();
+    g.maxNumbersOfThreads = getMaxNumbersOfThreads();
     g.rsync = 0;                    // don't do rsync blocking
     g.setdict = 1;                  // initialize dictionary each thread
     g.verbosity = 1;                // normal message level
@@ -4137,10 +4137,10 @@ static int option(char *arg) {
         }
         else if (get == 2) {
             n = num(arg);
-            g.procs = (int)n;                   // # processes
-            if (g.procs < 1)
+            g.maxNumbersOfThreads = (int)n;                   // # processes
+            if (g.maxNumbersOfThreads < 1)
                 throw(EINVAL, "invalid number of processes: %s", arg);
-            if ((size_t)g.procs != n || INBUFS(g.procs) < 1)
+            if ((size_t)g.maxNumbersOfThreads != n || INBUFS(g.maxNumbersOfThreads) < 1)
                 throw(EINVAL, "too many processes: %s", arg);
         }
         else if (get == 3) {
