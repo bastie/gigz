@@ -678,32 +678,35 @@ static size_t readn(int desc, unsigned char *buf, size_t len) {
 
     got = 0;
     while (len) {
-        ret = read(desc, buf, len);
-        if (ret < 0)
-            throw(errno, "read error on %s (%s)", g.inf, strerror(errno));
-        if (ret == 0)
-            break;
-        buf += ret;
-        len -= (size_t)ret;
-        got += (size_t)ret;
+      ret = read(desc, buf, len);
+      if (ret == 0) {
+        break;
+      }
+      else if (ret < 0) {
+        throw(errno, "read error on %s (%s)", g.inf, strerror(errno));
+      }
+      buf += ret;
+      len -= (size_t)ret;
+      got += (size_t)ret;
     }
     return got;
 }
 
 // Write len bytes, repeating write() calls as needed. Return len.
 static size_t writen(int desc, void const *buf, size_t len) {
-    char const *next = buf;
-    size_t left = len;
+  char const *next = buf;
+  size_t left = len;
 
-    while (left) {
-        size_t const max = SSIZE_MAX;
-        ssize_t ret = write(desc, next, left > max ? max : left);
-        if (ret < 1)
-            throw(errno, "write error on %s (%s)", g.outf, strerror(errno));
-        next += ret;
-        left -= (size_t)ret;
+  while (left) {
+    size_t const max = SSIZE_MAX;
+    ssize_t ret = write(desc, next, left > max ? max : left);
+    if (ret < 1) {
+      throw(errno, "write error on %s (%s)", g.outf, strerror(errno));
     }
-    return len;
+    next += ret;
+    left -= (size_t)ret;
+  }
+  return len;
 }
 
 // Convert Unix time to MS-DOS date and time, assuming the current timezone.

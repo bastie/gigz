@@ -1,6 +1,5 @@
 //
-//  _system.h
-//  madler
+//  mySystem.h
 //
 //  Created by Sebastian Ritter on 19.04.24.
 //
