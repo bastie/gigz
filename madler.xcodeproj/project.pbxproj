@@ -22,6 +22,7 @@
 		48844CC92BD2744E00FC54E7 /* yarn.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CBC2BD2744E00FC54E7 /* yarn.c */; };
 		48844CCF2BD2746100FC54E7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 48844CCE2BD2746100FC54E7 /* Makefile */; };
 		48844CD22BD2B83200FC54E7 /* mySystem.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CD12BD2B83200FC54E7 /* mySystem.c */; };
+		48844CD52BD3FA5A00FC54E7 /* myCLI.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CD42BD3FA5A00FC54E7 /* myCLI.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -74,6 +75,8 @@
 		48844CCE2BD2746100FC54E7 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = madler/Makefile; sourceTree = "<group>"; };
 		48844CD02BD2B83200FC54E7 /* mySystem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mySystem.h; sourceTree = "<group>"; };
 		48844CD12BD2B83200FC54E7 /* mySystem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = mySystem.c; sourceTree = "<group>"; };
+		48844CD32BD3FA5A00FC54E7 /* myCLI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = myCLI.h; sourceTree = "<group>"; };
+		48844CD42BD3FA5A00FC54E7 /* myCLI.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = myCLI.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +121,8 @@
 				48844CB72BD2744E00FC54E7 /* zopfli */,
 				48844CD02BD2B83200FC54E7 /* mySystem.h */,
 				48844CD12BD2B83200FC54E7 /* mySystem.c */,
+				48844CD32BD3FA5A00FC54E7 /* myCLI.h */,
+				48844CD42BD3FA5A00FC54E7 /* myCLI.c */,
 			);
 			path = madler;
 			sourceTree = "<group>";
@@ -233,6 +238,7 @@
 				48844CBE2BD2744E00FC54E7 /* cache.c in Sources */,
 				48844CC32BD2744E00FC54E7 /* squeeze.c in Sources */,
 				48844CC12BD2744E00FC54E7 /* katajainen.c in Sources */,
+				48844CD52BD3FA5A00FC54E7 /* myCLI.c in Sources */,
 				48844CC42BD2744E00FC54E7 /* symbols.c in Sources */,
 				48844CBF2BD2744E00FC54E7 /* deflate.c in Sources */,
 				48844CC62BD2744E00FC54E7 /* util.c in Sources */,

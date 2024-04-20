@@ -11,17 +11,19 @@ ZOP=deflate.o blocksplitter.o tree.o lz77.o cache.o hash.o util.o squeeze.o kata
 
 # use gcc and gmake on Solaris
 
-gigz: gigz.o yarn.o try.o mySystem.o $(ZOP)
-	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o $(ZOP) $(LIBS)
+gigz: gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP)
+	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP) $(LIBS)
 	ln -f gigz ungigz
 
-gigz.o: gigz.c yarn.h try.h mySystem.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
+gigz.o: gigz.c yarn.h try.h mySystem.h myCLI.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
 
 yarn.o: yarn.c yarn.h
 
 try.o: try.c try.h
 
 mySystem.o: mySystem.c mySystem.h
+
+myCLI.o: myCLI.c myCLI.h
 
 deflate.o: $(ZOPFLI)deflate.c $(ZOPFLI)deflate.h $(ZOPFLI)blocksplitter.h $(ZOPFLI)lz77.h $(ZOPFLI)squeeze.h $(ZOPFLI)tree.h $(ZOPFLI)zopfli.h $(ZOPFLI)cache.h $(ZOPFLI)hash.h $(ZOPFLI)util.h $(ZOPFLI)symbols.h
 	$(CC) $(CFLAGS) -c $(ZOPFLI)deflate.c
@@ -55,8 +57,8 @@ symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 
 dev: gigz gigzj
 
-gigzj: gigzj.o yarn.o try.o mySystem.o
-	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o mySystem.o $(LIBS)
+gigzj: gigzj.o yarn.o try.o mySystem.o myCLI.o
+	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o mySystem.o myCLI.o $(LIBS)
 
 gigzj.o: gigz.c yarn.h try.h
 	$(CC) $(CFLAGS) -DNOZOPFLI -c -o gigzj.o gigz.c

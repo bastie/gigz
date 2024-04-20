@@ -350,6 +350,7 @@
 #define _XOPEN_SOURCE 700               // For POSIX 2008
 
 #include "mySystem.h"   // computer system informations
+#include "myCLI.h"      // all about command line interface
 
 
 // Included headers and what is expected from each.
@@ -377,16 +378,10 @@
 #include <dirent.h>     // opendir(), readdir(), closedir(), DIR,
                         // struct dirent
 #include <limits.h>     // UINT_MAX, INT_MAX
-#if __STDC_VERSION__-0 >= 199901L || __GNUC__-0 >= 3
 #  include <inttypes.h> // intmax_t, uintmax_t
-   typedef uintmax_t length_t;
-   typedef uint32_t crc_t;
-   typedef uint_least16_t prefix_t;
-#else
-   typedef unsigned long length_t;
-   typedef unsigned long crc_t;
-   typedef unsigned prefix_t;
-#endif
+ typedef uintmax_t length_t;
+ typedef uint32_t crc_t;
+ typedef uint_least16_t prefix_t;
 
 #ifndef S_IFLNK
 #  define S_IFLNK 0
@@ -3848,74 +3843,6 @@ static void process(char *path) {
     RELEASE(g.outf);
 }
 
-static char *helptext[] = {
-"Usage: pigz [options] [files ...]",
-"  will compress files in place, adding the suffix '.gz'. If no files are",
-"  specified, stdin will be compressed to stdout. pigz does what gzip does,",
-"  but spreads the work over multiple processors and cores when compressing.",
-"",
-"Options:",
-#ifdef NOZOPFLI
-"  -0 to -9             Compression level",
-#else
-"  -0 to -9, -11        Compression level (level 11, zopfli, is much slower)",
-#endif
-"  --fast, --best       Compression levels 1 and 9 respectively",
-"  -A, --alias xxx      Use xxx as the name for any --zip entry from stdin",
-"  -b, --blocksize mmm  Set compression block size to mmmK (default 128K)",
-"  -c, --stdout         Write all processed output to stdout (won't delete)",
-"  -C, --comment ccc    Put comment ccc in the gzip or zip header",
-"  -d, --decompress     Decompress the compressed input",
-"  -f, --force          Force overwrite, compress .gz, links, and to terminal",
-#ifndef NOZOPFLI
-"  -F  --first          Do iterations first, before block split for -11",
-#endif
-"  -h, --help           Display a help screen and quit",
-"  -H, --huffman        Use only Huffman coding for compression",
-"  -i, --independent    Compress blocks independently for damage recovery",
-#ifndef NOZOPFLI
-"  -I, --iterations n   Number of iterations for -11 optimization",
-"  -J, --maxsplits n    Maximum number of split blocks for -11",
-#endif
-"  -k, --keep           Do not delete original file after processing",
-"  -K, --zip            Compress to PKWare zip (.zip) single entry format",
-"  -l, --list           List the contents of the compressed input",
-"  -L, --license        Display the pigz license and quit",
-"  -m, --no-time        Do not store or restore mod time",
-"  -M, --time           Store or restore mod time",
-"  -n, --no-name        Do not store or restore file name or mod time",
-"  -N, --name           Store or restore file name and mod time",
-#ifndef NOZOPFLI
-"  -O  --oneblock       Do not split into smaller blocks for -11",
-#endif
-"  -p, --processes n    Allow up to n compression threads (default is the",
-"                       number of online processors, or 8 if unknown)",
-"  -q, --quiet          Print no messages, even on error",
-"  -r, --recursive      Process the contents of all subdirectories",
-"  -R, --rsyncable      Input-determined block locations for rsync",
-"  -S, --suffix .sss    Use suffix .sss instead of .gz (for compression)",
-"  -t, --test           Test the integrity of the compressed input",
-"  -U, --rle            Use run-length encoding for compression",
-"  -v, --verbose        Provide more verbose output",
-"  -V  --version        Show the version of pigz",
-"  -Y  --synchronous    Force output file write to permanent storage",
-"  -z, --zlib           Compress to zlib (.zz) instead of gzip format",
-"  --                   All arguments after \"--\" are treated as files"
-};
-
-// Display the help text above.
-static void help(void) {
-    int n;
-
-    if (g.verbosity == 0)
-        return;
-    for (n = 0; n < (int)(sizeof(helptext) / sizeof(char *)); n++)
-        fprintf(stderr, "%s\n", helptext[n]);
-    fflush(stderr);
-    exit(0);
-}
-
-
 // Set option defaults.
 static void defaults(void) {
     g.level = Z_DEFAULT_COMPRESSION;
@@ -4066,6 +3993,7 @@ static int option(char *arg) {
             case 'L':
                 puts(VERSION);
                 puts("Copyright (C) 2007-2023 Mark Adler");
+                puts("Modified 2024 by Sebastian Ritter");
                 puts("Subject to the terms of the zlib license.");
                 puts("No warranty is provided or implied.");
                 exit(0);
@@ -4097,7 +4025,7 @@ static int option(char *arg) {
             case 'c':  g.pipeout = 1;  break;
             case 'd':  if (!g.decode) g.headis >>= 2;  g.decode = 1;  break;
             case 'f':  g.force = 1;  break;
-            case 'h':  help();  break;
+            case 'h':  displayHelpOnCommandLine(g.verbosity);  break;
             case 'i':  g.setdict = 0;  break;
             case 'k':  g.keep = 1;  break;
             case 'l':  g.list = 1;  break;
@@ -4260,8 +4188,9 @@ int main(int argc, char **argv) {
         }
 
         // if no arguments and compressed data to/from terminal, show help
-        if (argc < 2 && isatty(g.decode ? 0 : 1))
-            help();
+      if (argc < 2 && isatty(g.decode ? 0 : 1)) {
+        displayHelpOnCommandLine(g.verbosity);
+      }
 
         // process all command-line options first
         nop = argc;
