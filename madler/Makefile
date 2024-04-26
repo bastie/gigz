@@ -55,14 +55,6 @@ katajainen.o: $(ZOPFLI)katajainen.c $(ZOPFLI)katajainen.h
 symbols.o: $(ZOPFLI)symbols.c $(ZOPFLI)symbols.h
 	$(CC) $(CFLAGS) -c $(ZOPFLI)symbols.c
 
-dev: gigz gigzj
-
-gigzj: gigzj.o yarn.o try.o mySystem.o myCLI.o
-	$(CC) $(LDFLAGS) -o gigzj gigzj.o yarn.o try.o mySystem.o myCLI.o $(LIBS)
-
-gigzj.o: gigz.c yarn.h try.h
-	$(CC) $(CFLAGS) -DNOZOPFLI -c -o gigzj.o gigz.c
-
 test: gigz
 	./gigz -kf gigz.c ; ./gigz -t gigz.c.gz
 	./gigz -kfb 32 gigz.c ; ./gigz -t gigz.c.gz
@@ -78,7 +70,7 @@ test: gigz
 	(printf "w" | gzip ; printf "xyz") | ./gigz -cdf | wc -c | test `cat` -eq 4
 	@rm -f gigz.c.gz gigz.c.zz gigz.c.zip
 
-tests: dev test
+tests: test
 
 docs: gigz.pdf
 

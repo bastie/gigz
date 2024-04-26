@@ -27,11 +27,7 @@ static char *helptext[] = {
   "  but spreads the work over multiple processors and cores when compressing.",
   "",
   "Options:",
-#ifdef NOZOPFLI
-  "  -0 to -9             Compression level",
-#else
   "  -0 to -9, -11        Compression level (level 11, zopfli, is much slower)",
-#endif
   "  --fast, --best       Compression levels 1 and 9 respectively",
   "  -A, --alias xxx      Use xxx as the name for any --zip entry from stdin",
   "  -b, --blocksize mmm  Set compression block size to mmmK (default 128K)",
@@ -39,16 +35,12 @@ static char *helptext[] = {
   "  -C, --comment ccc    Put comment ccc in the gzip or zip header",
   "  -d, --decompress     Decompress the compressed input",
   "  -f, --force          Force overwrite, compress .gz, links, and to terminal",
-#ifndef NOZOPFLI
   "  -F  --first          Do iterations first, before block split for -11",
-#endif
   "  -h, --help           Display a help screen and quit",
   "  -H, --huffman        Use only Huffman coding for compression",
   "  -i, --independent    Compress blocks independently for damage recovery",
-#ifndef NOZOPFLI
   "  -I, --iterations n   Number of iterations for -11 optimization",
   "  -J, --maxsplits n    Maximum number of split blocks for -11",
-#endif
   "  -k, --keep           Do not delete original file after processing",
   "  -K, --zip            Compress to PKWare zip (.zip) single entry format",
   "  -l, --list           List the contents of the compressed input",
@@ -57,9 +49,7 @@ static char *helptext[] = {
   "  -M, --time           Store or restore mod time",
   "  -n, --no-name        Do not store or restore file name or mod time",
   "  -N, --name           Store or restore file name and mod time",
-#ifndef NOZOPFLI
   "  -O  --oneblock       Do not split into smaller blocks for -11",
-#endif
   "  -p, --processes n    Allow up to n compression threads (default is the",
   "                       number of online processors, or 8 if unknown)",
   "  -q, --quiet          Print no messages, even on error",
