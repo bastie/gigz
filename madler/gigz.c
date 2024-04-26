@@ -217,6 +217,7 @@
    1.0    2024-xx-xx  Remove HP Unix, Win, OS2, MSDOC, CYGWIN, AIX
                       Remove NOTHREAD because you should use gzip instead
                       Remove check of zlib versions because macOS provides
+                      REMOVE NOZOPFLI because use -1 to -9 instead
  */
 
 #define VERSION "gigz 1.0"
@@ -398,9 +399,9 @@
                         // new_lock(), possess(), twist(), wait_for(),
                         // release(), peek_lock(), free_lock(), yarn_name
 
-#  include "zopfli/src/zopfli/deflate.h"    // ZopfliDeflatePart(),
-                                            // ZopfliInitOptions(),
-                                            // ZopfliOptions
+#include "zopfli/src/zopfli/deflate.h"    // ZopfliDeflatePart(),
+                                          // ZopfliInitOptions(),
+                                          // ZopfliOptions
 
 #include "try.h"        // try, catch, always, throw, drop, punt, ball_t
 
@@ -420,7 +421,8 @@
 
 // Largest power of 2 that fits in an unsigned int. Used to limit requests to
 // zlib functions that use unsigned int lengths.
-#define MAXP2 (UINT_MAX - (UINT_MAX >> 1))
+//#define MAXP2 (UINT_MAX - (UINT_MAX >> 1))
+static const unsigned int MAXP2 = (UINT_MAX - (UINT_MAX >> 1));
 
 /* rsyncable constants -- RSYNCBITS is the number of bits in the mask for
    comparison. For random input data, there will be a hit on average every
@@ -2914,7 +2916,7 @@ static unsigned inb(void *desc, unsigned char **buf) {
     if (g.in_left == 0)
         load();
     *buf = g.in_next;
-    unsigned len = g.in_left > UINT_MAX ? UINT_MAX : (unsigned)g.in_left;
+    unsigned int len = g.in_left > UINT_MAX ? UINT_MAX : (unsigned int)g.in_left;
     g.in_next += len;
     g.in_left -= len;
     return len;
