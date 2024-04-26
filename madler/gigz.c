@@ -585,13 +585,9 @@ static void *alloc(void *ptr, size_t size) {
 }
 
 #define log_dump()
-#define Trace(x)
 
 // Abort or catch termination signal.
 static void cut_short(int sig) {
-    if (sig == SIGINT) {
-        Trace(("termination by user"));
-    }
     if (g.outd != -1 && g.outd != 1) {
         unlink(g.outf);
         RELEASE(g.outf);
@@ -1286,19 +1282,14 @@ static void finish_jobs(void) {
 
     // join all of the compress threads, verify they all came back
     caught = join_all();
-    Trace(("-- joined %d compress threads", caught));
     assert(caught == cthreads);
     cthreads = 0;
 
     // free the resources
     caught = free_pool(&lens_pool);
-    Trace(("-- freed %d block lengths buffers", caught));
     caught = free_pool(&dict_pool);
-    Trace(("-- freed %d dictionary buffers", caught));
     caught = free_pool(&out_pool);
-    Trace(("-- freed %d output buffers", caught));
     caught = free_pool(&in_pool);
-    Trace(("-- freed %d input buffers", caught));
     free_lock(write_first);
     free_lock(compress_have);
     compress_have = NULL;
@@ -1379,7 +1370,6 @@ static void compress_thread(void *dummy) {
             // got a job -- initialize and set the compression level (note that
             // if deflateParams() is called immediately after deflateReset(),
             // there is no need to initialize input/output for the stream)
-            Trace(("-- compressing #%ld", job->seq));
             if (g.level <= 9) {
                 (void)deflateReset(&strm);
                 (void)deflateParams(&strm, g.level, g.strategy);
@@ -1520,8 +1510,6 @@ static void compress_thread(void *dummy) {
             } while (left);
             drop_space(job->lens);
             job->lens = NULL;
-            Trace(("-- compressed #%ld%s", job->seq,
-                   job->more ? "" : " (last)"));
 
             // reserve input buffer until check value has been calculated
             use_space(job->in);
@@ -1552,7 +1540,6 @@ static void compress_thread(void *dummy) {
             check = CHECK(check, next, (unsigned)len);
             drop_space(job->in);
             job->check = check;
-            Trace(("-- checked #%ld%s", job->seq, job->more ? "" : " (last)"));
             possess(job->calc);
             twist(job->calc, TO, 1);
 
@@ -1591,7 +1578,6 @@ static void write_thread(void *dummy) {
 
     try {
         // build and write header
-        Trace(("-- write thread running"));
         head = put_header();
 
         // process output of compress threads until end of input
@@ -1614,10 +1600,8 @@ static void write_thread(void *dummy) {
             clen += job->out->len;
 
             // write the compressed data and drop the output buffer
-            Trace(("-- writing #%ld", seq));
             writen(g.outd, job->out->buf, job->out->len);
             drop_space(job->out);
-            Trace(("-- wrote #%ld%s", seq, more ? "" : " (last)"));
 
             // wait for check calculation to complete, then combine, once the
             // compress thread is done with the input, release it
@@ -1625,7 +1609,6 @@ static void write_thread(void *dummy) {
             wait_for(job->calc, TO_BE, 1);
             release(job->calc);
             check = COMB(check, job->check, len);
-            Trace(("-- combined #%ld%s", seq, more ? "" : " (last)"));
 
             // free the job
             free_lock(job->calc);
@@ -1836,7 +1819,6 @@ static void parallel_compress(void) {
 
         // preparation of job is complete
         job->seq = seq;
-        Trace(("-- read #%ld%s", seq, more ? "" : " (last)"));
         if (++seq < 1)
             throw(ERANGE, "overflow");
 
@@ -1859,7 +1841,6 @@ static void parallel_compress(void) {
     // there and waiting in case there is another stream to compress)
     join(writeth);
     writeth = NULL;
-    Trace(("-- write thread joined"));
 }
 
 // Repeated code in single_compress to compress available input and write it.
@@ -2128,7 +2109,6 @@ static void load_read(void *dummy) {
 
     (void)dummy;
 
-    Trace(("-- launched decompress read thread"));
     try {
         do {
             possess(g.load_state);
@@ -2137,16 +2117,13 @@ static void load_read(void *dummy) {
                 release(g.load_state);
                 break;
             }
-            g.in_len = len = readn(g.ind, g.in_which ? g.in_buf : g.in_buf2,
-                                   BUF);
-            Trace(("-- decompress read thread read %lu bytes", len));
+            g.in_len = len = readn(g.ind, g.in_which ? g.in_buf : g.in_buf2, BUF);
             twist(g.load_state, TO, 0);
         } while (len == BUF);
     }
     catch (err) {
         THREADABORT(err);
     }
-    Trace(("-- exited decompress read thread"));
 }
 
 // Wait for load_read() to complete the current read operation. If the
@@ -2937,7 +2914,6 @@ static void outb_write(void *dummy) {
 
     (void)dummy;
 
-    Trace(("-- launched decompress write thread"));
     try {
         do {
             possess(outb_write_more);
@@ -2945,14 +2921,12 @@ static void outb_write(void *dummy) {
             len = out_len;
             if (len && g.decode == 1)
                 writen(g.outd, out_copy, len);
-            Trace(("-- decompress wrote %lu bytes", len));
             twist(outb_write_more, TO, 0);
         } while (len);
     }
     catch (err) {
         THREADABORT(err);
     }
-    Trace(("-- exited decompress write thread"));
 }
 
 // Output check thread.
@@ -2962,21 +2936,18 @@ static void outb_check(void *dummy) {
 
     (void)dummy;
 
-    Trace(("-- launched decompress check thread"));
     try {
         do {
             possess(outb_check_more);
             wait_for(outb_check_more, TO_BE, 1);
             len = out_len;
             g.out_check = CHECK(g.out_check, out_copy, len);
-            Trace(("-- decompress checked %lu bytes", len));
             twist(outb_check_more, TO, 0);
         } while (len);
     }
     catch (err) {
         THREADABORT(err);
     }
-    Trace(("-- exited decompress check thread"));
 }
 
 // Call-back output function for inflateBack(). Wait for the last write and

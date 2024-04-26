@@ -23,7 +23,7 @@ void displayHelpOnCommandLine(enum Verbosity value);
 static char *helptext[] = {
   "Usage: gigz [options] [files ...]",
   "  will compress files in place, adding the suffix '.gz'. If no files are",
-  "  specified, stdin will be compressed to stdout. pigz does what gzip does,",
+  "  specified, stdin will be compressed to stdout. gigz does what gzip does,",
   "  but spreads the work over multiple processors and cores when compressing.",
   "",
   "Options:",
@@ -44,7 +44,7 @@ static char *helptext[] = {
   "  -k, --keep           Do not delete original file after processing",
   "  -K, --zip            Compress to PKWare zip (.zip) single entry format",
   "  -l, --list           List the contents of the compressed input",
-  "  -L, --license        Display the pigz license and quit",
+  "  -L, --license        Display the gigz license and quit",
   "  -m, --no-time        Do not store or restore mod time",
   "  -M, --time           Store or restore mod time",
   "  -n, --no-name        Do not store or restore file name or mod time",
@@ -59,7 +59,7 @@ static char *helptext[] = {
   "  -t, --test           Test the integrity of the compressed input",
   "  -U, --rle            Use run-length encoding for compression",
   "  -v, --verbose        Provide more verbose output",
-  "  -V  --version        Show the version of pigz",
+  "  -V  --version        Show the version of gigz",
   "  -Y  --synchronous    Force output file write to permanent storage",
   "  -z, --zlib           Compress to zlib (.zz) instead of gzip format",
   "  --                   All arguments after \"--\" are treated as files"
