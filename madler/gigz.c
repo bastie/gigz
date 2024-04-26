@@ -555,16 +555,6 @@ static void message(char *fmt, va_list ap) {
     }
 }
 
-// Display a complaint with the program name on stderr.
-static int complain(char *fmt, ...) {
-    g.ret = 1;
-    va_list ap;
-    va_start(ap, fmt);
-    message(fmt, ap);
-    va_end(ap);
-    return 0;
-}
-
 // Same as complain(), but don't force a bad return code.
 static int grumble(char *fmt, ...) {
     va_list ap;
@@ -573,6 +563,12 @@ static int grumble(char *fmt, ...) {
     va_end(ap);
     return 0;
 }
+// Display a complaint with the program name on stderr and force a bad return code.
+static int complain(char *fmt, ...) {
+  g.ret = 1;
+  return grumble(fmt);
+}
+
 
 #define REALLOC realloc
 #define FREE free
