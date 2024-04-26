@@ -105,6 +105,10 @@
         handler will exit (set to NULL by default for no action)
  */
 
+#ifndef yarn_h
+#define yarn_h
+
+
 extern char *yarn_prefix;
 extern void (*yarn_abort)(int);
 
@@ -136,3 +140,5 @@ void wait_for_(lock *, enum wait_op, long, char const *, long);
 long peek_lock(lock *);
 void free_lock_(lock *, char const *, long);
 #define free_lock(a) free_lock_(a, __FILE__, __LINE__)
+
+#endif /* yarn_h */

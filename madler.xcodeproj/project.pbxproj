@@ -20,7 +20,6 @@
 		48844CC72BD2744E00FC54E7 /* try.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CB82BD2744E00FC54E7 /* try.c */; };
 		48844CC82BD2744E00FC54E7 /* gigz.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CBB2BD2744E00FC54E7 /* gigz.c */; };
 		48844CC92BD2744E00FC54E7 /* yarn.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CBC2BD2744E00FC54E7 /* yarn.c */; };
-		48844CCF2BD2746100FC54E7 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 48844CCE2BD2746100FC54E7 /* Makefile */; };
 		48844CD22BD2B83200FC54E7 /* mySystem.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CD12BD2B83200FC54E7 /* mySystem.c */; };
 		48844CD52BD3FA5A00FC54E7 /* myCLI.c in Sources */ = {isa = PBXBuildFile; fileRef = 48844CD42BD3FA5A00FC54E7 /* myCLI.c */; };
 /* End PBXBuildFile section */
@@ -246,7 +245,6 @@
 				48844CBD2BD2744E00FC54E7 /* blocksplitter.c in Sources */,
 				48844CC52BD2744E00FC54E7 /* tree.c in Sources */,
 				48844CC02BD2744E00FC54E7 /* hash.c in Sources */,
-				48844CCF2BD2746100FC54E7 /* Makefile in Sources */,
 				48844CC22BD2744E00FC54E7 /* lz77.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
