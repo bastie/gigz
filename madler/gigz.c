@@ -514,8 +514,6 @@ static void *alloc(void *ptr, size_t size) {
     return ptr;
 }
 
-#define log_dump()
-
 // Abort or catch termination signal.
 static void cut_short(int sig) {
     if (g.outd != -1 && g.outd != 1) {
@@ -523,7 +521,6 @@ static void cut_short(int sig) {
         RELEASE(g.outf);
         g.outd = -1;
     }
-    log_dump();
     _exit(sig < 0 ? -sig : EINTR);
 }
 
@@ -4086,6 +4083,5 @@ int main(int argc, char **argv) {
     }
 
     // show log (if any)
-    log_dump();
     return g.ret;
 }
