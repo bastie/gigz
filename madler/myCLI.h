@@ -10,6 +10,82 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "zopfli/src/zopfli/zopfli.h"
+#include "yarn.h"
+
+#include <time.h>       // ctime(), time(), time_t, mktime()
+
+// Input buffer size, and augmentation for re-inserting a central header.
+#define BUF 32768
+#define CEN 42
+#define EXT (BUF + CEN)     // provide enough room to unget a header
+
+typedef uintmax_t length_t;
+typedef uint32_t crc_t;
+
+
+// Globals (modified by main thread only when it's the only thread).
+static struct {
+  int ret;                // pigz return code
+  char *prog;             // name by which pigz was invoked
+  int ind;                // input file descriptor
+  int outd;               // output file descriptor
+  char *inf;              // input file name (allocated)
+  size_t inz;             // input file name allocated size
+  char *outf;             // output file name (allocated)
+  int verbosity;          // 0 = quiet, 1 = normal, 2 = verbose, 3 = trace
+  int headis;             // 1 to store name, 2 to store date, 3 both
+  int pipeout;            // write output to stdout even if file
+  int keep;               // true to prevent deletion of input file
+  int force;              // true to overwrite, compress links, cat
+  int sync;               // true to flush output file
+  int form;               // gzip = 0, zlib = 1, zip = 2 or 3
+  int magic1;             // first byte of possible header when decoding
+  int recurse;            // true to dive down into directory structure
+  char *sufx;             // suffix to use (".gz" or user supplied)
+  char *name;             // name for gzip or zip header
+  char *alias;            // name for zip header when input is stdin
+  char *comment;          // comment for gzip or zip header.
+  time_t mtime;           // time stamp from input file for gzip header
+  int list;               // true to list files instead of compress
+  int first;              // true if we need to print listing header
+  int decode;             // 0 to compress, 1 to decompress, 2 to test
+  int level;              // compression level
+  int strategy;           // compression strategy
+  ZopfliOptions zopts;    // zopfli compression options
+  int rsync;              // true for rsync blocking
+  int maxNumbersOfThreads;// maximum number of compression threads (>= 1)
+  int setdict;            // true to initialize dictionary in each thread
+  size_t block;           // uncompressed input size per thread (>= 32K)
+  crc_t shift;            // pre-calculated CRC-32 shift for length block
+  
+  // saved gzip/zip header data for decompression, testing, and listing
+  time_t stamp;           // time stamp from gzip header
+  char *hname;            // name from header (allocated)
+  char *hcomm;            // comment from header (allocated)
+  unsigned long zip_crc;  // local header crc
+  length_t zip_clen;      // local header compressed length
+  length_t zip_ulen;      // local header uncompressed length
+  int zip64;              // true if has zip64 extended information
+  
+  // globals for decompression and listing buffered reading
+  unsigned char in_buf[EXT];  // input buffer
+  unsigned char *in_next; // next unused byte in buffer
+  size_t in_left;         // number of unused bytes in buffer
+  int in_eof;             // true if reached end of file on input
+  int in_short;           // true if last read didn't fill buffer
+  length_t in_tot;        // total bytes read from input
+  length_t out_tot;       // total bytes written to output
+  unsigned long out_check;    // check value of output
+  
+  // globals for decompression parallel reading
+  unsigned char in_buf2[EXT]; // second buffer for parallel reads
+  size_t in_len;          // data waiting in next buffer
+  int in_which;           // -1: start, 0: in_buf2, 1: in_buf
+  lock *load_state;       // value = 0 to wait, 1 to read a buffer
+  thread *load_thread;    // load_read() thread for joining
+} g;
+
 
 enum Verbosity {
   QUIET = 0,
