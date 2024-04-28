@@ -8,5 +8,6 @@
 #define myIO_h
 
 #include <stdio.h>
+size_t readn(int desc, unsigned char *buf, size_t len);
 
 #endif /* myIO_h */

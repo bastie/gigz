@@ -29,8 +29,8 @@ static struct {
   int ret;                // pigz return code
   char *prog;             // name by which pigz was invoked
   int ind;                // input file descriptor
-  int outd;               // output file descriptor
-  char *inf;              // input file name (allocated)
+  int outputFileDescriptor;               // output file descriptor
+  char *inputFilename;              // input file name (allocated)
   size_t inz;             // input file name allocated size
   char *outf;             // output file name (allocated)
   int verbosity;          // 0 = quiet, 1 = normal, 2 = verbose, 3 = trace

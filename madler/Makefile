@@ -6,7 +6,7 @@ ZOPFLI=zopfli/src/zopfli/
 ZOP=deflate.o blocksplitter.o tree.o lz77.o cache.o hash.o util.o squeeze.o katajainen.o symbols.o
 
 gigz: gigz.o yarn.o try.o mySystem.o myCLI.o myIO.o $(ZOP)
-	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP) $(LIBS)
+	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o myCLI.o myIO.o $(ZOP) $(LIBS)
 	ln -f gigz ungigz
 
 gigz.o: gigz.c yarn.h try.h mySystem.h myCLI.h myIO.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h

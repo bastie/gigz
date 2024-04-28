@@ -352,7 +352,7 @@
 
 #include "mySystem.h"   // computer system informations
 #include "myCLI.h"      // all about command line interface
-
+#include "myIO.h"       // IO interface
 
 // Included headers and what is expected from each.
 #include <stdio.h>      // fflush(), fprintf(), fputs(), getchar(), putc(),
@@ -516,10 +516,10 @@ static void *alloc(void *ptr, size_t size) {
 
 // Abort or catch termination signal.
 static void cut_short(int sig) {
-    if (g.outd != -1 && g.outd != 1) {
+    if (g.outputFileDescriptor != -1 && g.outputFileDescriptor != 1) {
         unlink(g.outf);
         RELEASE(g.outf);
-        g.outd = -1;
+        g.outputFileDescriptor = -1;
     }
     _exit(sig < 0 ? -sig : EINTR);
 }
@@ -581,27 +581,6 @@ static inline size_t vmemcpy(char **mem, size_t *size, size_t off,
 // the string plus one.
 static inline size_t vstrcpy(char **str, size_t *size, size_t off, void *cpy) {
     return vmemcpy(str, size, off, cpy, strlen(cpy) + 1);
-}
-
-// Read up to len bytes into buf, repeating read() calls as needed.
-static size_t readn(int desc, unsigned char *buf, size_t len) {
-    ssize_t ret;
-    size_t got;
-
-    got = 0;
-    while (len) {
-      ret = read(desc, buf, len);
-      if (ret == 0) {
-        break;
-      }
-      else if (ret < 0) {
-        throw(errno, "read error on %s (%s)", g.inf, strerror(errno));
-      }
-      buf += ret;
-      len -= (size_t)ret;
-      got += (size_t)ret;
-    }
-    return got;
 }
 
 // Write len bytes, repeating write() calls as needed. Return len.
@@ -710,7 +689,7 @@ static length_t put_header(void) {
         // in 32 bits or not, so we have to assume that they might not and put
         // in a Zip64 extra field so that the data descriptor that appears
         // after the compressed data is interpreted with 64-bit lengths
-        len = put(g.outd,
+        len = put(g.outputFileDescriptor,
             4, (val_t)0x04034b50,   // local header signature
             2, (val_t)45,           // version needed to extract (4.5)
             2, (val_t)8,            // flags: data descriptor follows data
@@ -724,11 +703,11 @@ static length_t put_header(void) {
             0);
 
         // write file name (use g.alias for stdin)
-        len += writen(g.outd, g.name == NULL ? g.alias : g.name,
+        len += writen(g.outputFileDescriptor, g.name == NULL ? g.alias : g.name,
                       strlen(g.name == NULL ? g.alias : g.name));
 
         // write Zip64 and extended timestamp extra field blocks (29 bytes)
-        len += put(g.outd,
+        len += put(g.outputFileDescriptor,
             2, (val_t)0x0001,       // Zip64 extended information ID
             2, (val_t)16,           // number of data bytes in this block
             8, (val_t)0,            // uncompressed length (not here)
@@ -749,12 +728,12 @@ static length_t put_header(void) {
                 g.level >= 6 || g.level == Z_DEFAULT_COMPRESSION ? 1 << 6 :
                 2 << 6);            // optional compression level clue
         head += 31 - (head % 31);   // make it a multiple of 31
-        len = put(g.outd,
+        len = put(g.outputFileDescriptor,
             -2, (val_t)head,        // zlib format uses big-endian order
             0);
     }
     else {                          // gzip
-        len = put(g.outd,
+        len = put(g.outputFileDescriptor,
             1, (val_t)31,
             1, (val_t)139,
             1, (val_t)8,            // deflate
@@ -765,9 +744,9 @@ static length_t put_header(void) {
             1, (val_t)3,            // unix
             0);
         if (g.name != NULL)
-            len += writen(g.outd, g.name, strlen(g.name) + 1);
+            len += writen(g.outputFileDescriptor, g.name, strlen(g.name) + 1);
         if (g.comment != NULL)
-            len += writen(g.outd, g.comment, strlen(g.comment) + 1);
+            len += writen(g.outputFileDescriptor, g.comment, strlen(g.comment) + 1);
     }
     return len;
 }
@@ -777,7 +756,7 @@ static void put_trailer(length_t ulen, length_t clen,
                        unsigned long check, length_t head) {
     if (g.form > 1) {               // zip
         // write Zip64 data descriptor, as promised in the local header
-        length_t desc = put(g.outd,
+        length_t desc = put(g.outputFileDescriptor,
             4, (val_t)0x08074b50,
             4, (val_t)check,
             8, (val_t)clen,
@@ -790,7 +769,7 @@ static void put_trailer(length_t ulen, length_t clen,
         int zip64 = ulen >= LOW32 || clen >= LOW32;
 
         // write central file header
-        length_t cent = put(g.outd,
+        length_t cent = put(g.outputFileDescriptor,
             4, (val_t)0x02014b50,   // central header signature
             1, (val_t)45,           // made by 4.5 for Zip64 V1 end record
             1, (val_t)255,          // ignore external attributes
@@ -811,12 +790,12 @@ static void put_trailer(length_t ulen, length_t clen,
             0);
 
         // write file name (use g.alias for stdin)
-        cent += writen(g.outd, g.name == NULL ? g.alias : g.name,
+        cent += writen(g.outputFileDescriptor, g.name == NULL ? g.alias : g.name,
                        strlen(g.name == NULL ? g.alias : g.name));
 
         // write Zip64 extra field block (20 bytes)
         if (zip64)
-            cent += put(g.outd,
+            cent += put(g.outputFileDescriptor,
                 2, (val_t)0x0001,   // Zip64 extended information ID
                 2, (val_t)16,       // number of data bytes in this block
                 8, (val_t)ulen,     // uncompressed length
@@ -824,7 +803,7 @@ static void put_trailer(length_t ulen, length_t clen,
                 0);
 
         // write extended timestamp extra field block (9 bytes)
-        cent += put(g.outd,
+        cent += put(g.outputFileDescriptor,
             2, (val_t)0x5455,       // extended timestamp signature
             2, (val_t)5,            // number of data bytes in this block
             1, (val_t)1,            // flag presence of mod time
@@ -833,7 +812,7 @@ static void put_trailer(length_t ulen, length_t clen,
 
         // write comment, if requested
         if (g.comment != NULL)
-            cent += writen(g.outd, g.comment, strlen(g.comment));
+            cent += writen(g.outputFileDescriptor, g.comment, strlen(g.comment));
 
         // here zip64 is true if the offset of the central directory does not
         // fit in 32 bits, in which case insert the Zip64 end records to
@@ -841,7 +820,7 @@ static void put_trailer(length_t ulen, length_t clen,
         zip64 = head + clen + desc >= LOW32;
         if (zip64) {
             // write Zip64 end of central directory record and locator
-            put(g.outd,
+            put(g.outputFileDescriptor,
                 4, (val_t)0x06064b50,   // Zip64 end of central dir sig
                 8, (val_t)44,       // size of the remainder of this record
                 2, (val_t)45,       // version made by
@@ -860,7 +839,7 @@ static void put_trailer(length_t ulen, length_t clen,
         }
 
         // write end of central directory record
-        put(g.outd,
+        put(g.outputFileDescriptor,
             4, (val_t)0x06054b50,   // end of central directory signature
             2, (val_t)0,            // number of this disk
             2, (val_t)0,            // disk with start of central directory
@@ -872,11 +851,11 @@ static void put_trailer(length_t ulen, length_t clen,
             0);
     }
     else if (g.form)                // zlib
-        put(g.outd,
+        put(g.outputFileDescriptor,
             -4, (val_t)check,       // zlib format uses big-endian order
             0);
     else                            // gzip
-        put(g.outd,
+        put(g.outputFileDescriptor,
             4, (val_t)check,
             4, (val_t)ulen,
             0);
@@ -1527,7 +1506,7 @@ static void write_thread(void *dummy) {
             clen += job->out->len;
 
             // write the compressed data and drop the output buffer
-            writen(g.outd, job->out->buf, job->out->len);
+            writen(g.outputFileDescriptor, job->out->buf, job->out->len);
             drop_space(job->out);
 
             // wait for check calculation to complete, then combine, once the
@@ -1777,7 +1756,7 @@ static void parallel_compress(void) {
             strm->avail_out = out_size; \
             strm->next_out = out; \
             (void)deflate(strm, flush); \
-            clen += writen(g.outd, out, out_size - strm->avail_out); \
+            clen += writen(g.outputFileDescriptor, out, out_size - strm->avail_out); \
         } while (strm->avail_out == 0); \
         assert(strm->avail_in == 0); \
     } while (0)
@@ -1986,28 +1965,28 @@ static void single_compress(int reset) {
             bits &= 7;
             if (more || left) {
                 if ((bits & 1) || !g.setdict) {
-                    writen(g.outd, def, size);
+                    writen(g.outputFileDescriptor, def, size);
                     if (bits == 0 || bits > 5)
-                        writen(g.outd, (unsigned char *)"\0", 1);
-                    writen(g.outd, (unsigned char *)"\0\0\xff\xff", 4);
+                        writen(g.outputFileDescriptor, (unsigned char *)"\0", 1);
+                    writen(g.outputFileDescriptor, (unsigned char *)"\0\0\xff\xff", 4);
                 }
                 else {
                     assert(size > 0);
-                    writen(g.outd, def, size - 1);
+                    writen(g.outputFileDescriptor, def, size - 1);
                     if (bits)
                         do {
                             def[size - 1] += 2 << bits;
-                            writen(g.outd, def + size - 1, 1);
+                            writen(g.outputFileDescriptor, def + size - 1, 1);
                             def[size - 1] = 0;
                             bits += 2;
                         } while (bits < 8);
-                    writen(g.outd, def + size - 1, 1);
+                    writen(g.outputFileDescriptor, def + size - 1, 1);
                 }
                 if (!g.setdict)             // two markers when independent
-                    writen(g.outd, (unsigned char *)"\0\0\0\xff\xff", 5);
+                    writen(g.outputFileDescriptor, (unsigned char *)"\0\0\0\xff\xff", 5);
             }
             else
-                writen(g.outd, def, size);
+                writen(g.outputFileDescriptor, def, size);
             free(def);
             while (got > MAXP2) {
                 check = CHECK(check, strm->next_in, MAXP2);
@@ -2608,9 +2587,9 @@ static void show_info(int method, unsigned long check, length_t len, int cont) {
     if (cont)
         strncpy(tag, "<...>", max + 1);
     else if (g.hname == NULL) {
-        n = strlen(g.inf) - compressed_suffix(g.inf);
-        memcpy(tag, g.inf, n > max + 1 ? max + 1 : n);
-        if (strcmp(g.inf + n, ".tgz") == 0 && n < max + 1)
+        n = strlen(g.inputFilename) - compressed_suffix(g.inputFilename);
+        memcpy(tag, g.inputFilename, n > max + 1 ? max + 1 : n);
+        if (strcmp(g.inputFilename + n, ".tgz") == 0 && n < max + 1)
             strncpy(tag + n, ".tar", max + 1 - n);
     }
     else
@@ -2690,7 +2669,7 @@ static void list_info(void) {
     if (method < 0) {
         complain(method == -6 ? "skipping: %s corrupt: header crc error" :
                  method == -1 ? "skipping: %s empty" :
-                 "skipping: %s unrecognized format", g.inf);
+                 "skipping: %s unrecognized format", g.inputFilename);
         return;
     }
 
@@ -2746,7 +2725,7 @@ static void list_info(void) {
     // skip to end to get trailer (8 bytes), compute compressed length
     if (g.in_short) {                   // whole thing already read
         if (g.in_left < 8) {
-            complain("skipping: %s not a valid gzip file", g.inf);
+            complain("skipping: %s not a valid gzip file", g.inputFilename);
             return;
         }
         g.in_tot = g.in_left - 8;       // compressed size
@@ -2765,7 +2744,7 @@ static void list_info(void) {
         } while (g.in_left == BUF);     // read until end
         if (g.in_left < 8) {
             if (n + g.in_left < 8) {
-                complain("skipping: %s not a valid gzip file", g.inf);
+                complain("skipping: %s not a valid gzip file", g.inputFilename);
                 return;
             }
             if (g.in_left) {
@@ -2779,7 +2758,7 @@ static void list_info(void) {
         g.in_tot -= len + 8;
     }
     if (g.in_tot < 2) {
-        complain("skipping: %s not a valid gzip file", g.inf);
+        complain("skipping: %s not a valid gzip file", g.inputFilename);
         return;
     }
 
@@ -2797,12 +2776,12 @@ static void cat(void) {
     // copy the first header byte read, if any
     if (g.magic1 != -1) {
         unsigned char buf[1] = {g.magic1};
-        g.out_tot += writen(g.outd, buf, 1);
+        g.out_tot += writen(g.outputFileDescriptor, buf, 1);
     }
 
     // copy the remainder of the input to the output
     while (g.in_left) {
-        g.out_tot += writen(g.outd, g.in_next, g.in_left);
+        g.out_tot += writen(g.outputFileDescriptor, g.in_next, g.in_left);
         g.in_left = 0;
         load();
     }
@@ -2847,7 +2826,7 @@ static void outb_write(void *dummy) {
             wait_for(outb_write_more, TO_BE, 1);
             len = out_len;
             if (len && g.decode == 1)
-                writen(g.outd, out_copy, len);
+                writen(g.outputFileDescriptor, out_copy, len);
             twist(outb_write_more, TO, 0);
         } while (len);
     }
@@ -2929,7 +2908,7 @@ static int outb(void *desc, unsigned char *buf, unsigned len) {
     // if just one process or no threads, then do it without threads
     if (len) {
         if (g.decode == 1)
-            writen(g.outd, buf, len);
+            writen(g.outputFileDescriptor, buf, len);
         g.out_check = CHECK(g.out_check, buf, len);
         g.out_tot += len;
     }
@@ -2980,9 +2959,9 @@ static void infchk(void) {
         outb(NULL, NULL, 0);        // finish off final write and check
         if (ret == Z_DATA_ERROR)
             throw(EDOM, "%s: corrupted -- invalid deflate data (%s)",
-                  g.inf, strm.msg);
+                  g.inputFilename, strm.msg);
         if (ret == Z_BUF_ERROR)
-            throw(EDOM, "%s: corrupted -- incomplete deflate data", g.inf);
+            throw(EDOM, "%s: corrupted -- incomplete deflate data", g.inputFilename);
         if (ret != Z_STREAM_END)
             throw(EINVAL, "internal error");
 
@@ -3047,15 +3026,15 @@ static void infchk(void) {
                 }
                 if (g.in_eof)
                     throw(EDOM, "%s: corrupted entry -- missing trailer",
-                          g.inf);
+                          g.inputFilename);
             }
             check = g.zip_crc;
             if (check != g.out_check)
-                throw(EDOM, "%s: corrupted entry -- crc32 mismatch", g.inf);
+                throw(EDOM, "%s: corrupted entry -- crc32 mismatch", g.inputFilename);
             if (g.zip_clen != (clen & LOW32) ||
                 g.zip_ulen != (g.out_tot & LOW32))
                 throw(EDOM, "%s: corrupted entry -- length mismatch",
-                      g.inf);
+                      g.inputFilename);
             more = more_zip_entries();  // see if more entries, get comment
         }
         else if (g.form == 1) {     // zlib (big-endian) trailer
@@ -3064,19 +3043,19 @@ static void infchk(void) {
             check += (unsigned)(GET()) << 8;
             check += GET();
             if (g.in_eof)
-                throw(EDOM, "%s: corrupted -- missing trailer", g.inf);
+                throw(EDOM, "%s: corrupted -- missing trailer", g.inputFilename);
             if (check != g.out_check)
-                throw(EDOM, "%s: corrupted -- adler32 mismatch", g.inf);
+                throw(EDOM, "%s: corrupted -- adler32 mismatch", g.inputFilename);
         }
         else {                      // gzip trailer
             check = GET4();
             len = GET4();
             if (g.in_eof)
-                throw(EDOM, "%s: corrupted -- missing trailer", g.inf);
+                throw(EDOM, "%s: corrupted -- missing trailer", g.inputFilename);
             if (check != g.out_check)
-                throw(EDOM, "%s: corrupted -- crc32 mismatch", g.inf);
+                throw(EDOM, "%s: corrupted -- crc32 mismatch", g.inputFilename);
             if (len != (g.out_tot & LOW32))
-                throw(EDOM, "%s: corrupted -- length mismatch", g.inf);
+                throw(EDOM, "%s: corrupted -- length mismatch", g.inputFilename);
         }
 
         // show file information if requested
@@ -3113,14 +3092,14 @@ static void infchk(void) {
 
     // check for more entries in zip file
     else if (more) {
-        complain("warning: %s: entries after the first were ignored", g.inf);
+        complain("warning: %s: entries after the first were ignored", g.inputFilename);
         g.keep = 1;         // don't delete the .zip file
     }
 
     // check for non-gzip after gzip stream, or anything after zlib stream
     else if ((g.verbosity > 1 && g.form == 0 && ret != -1) ||
              (g.form == 1 && (GET(), !g.in_eof)))
-        complain("warning: %s: trailing junk was ignored", g.inf);
+        complain("warning: %s: trailing junk was ignored", g.inputFilename);
 }
 
 // --- decompress Unix compress (LZW) input ---
@@ -3158,13 +3137,13 @@ static void unlzw(void) {
     // process remainder of compress header -- a flags byte
     g.out_tot = 0;
     if (NOMORE())
-        throw(EDOM, "%s: lzw premature end", g.inf);
+        throw(EDOM, "%s: lzw premature end", g.inputFilename);
     flags = NEXT();
     if (flags & 0x60)
-        throw(EDOM, "%s: unknown lzw flags set", g.inf);
+        throw(EDOM, "%s: unknown lzw flags set", g.inputFilename);
     max = flags & 0x1f;
     if (max < 9 || max > 16)
-        throw(EDOM, "%s: lzw bits out of range", g.inf);
+        throw(EDOM, "%s: lzw bits out of range", g.inputFilename);
     if (max == 9)                           // 9 doesn't really mean 9
         max = 10;
     flags &= 0x80;                          // true if block compress
@@ -3183,13 +3162,13 @@ static void unlzw(void) {
         return;
     buf = NEXT();
     if (NOMORE())
-        throw(EDOM, "%s: lzw premature end", g.inf);  // need nine bits
+        throw(EDOM, "%s: lzw premature end", g.inputFilename);  // need nine bits
     buf += NEXT() << 8;
     final = prev = buf & mask;              // code
     buf >>= bits;
     left = 16 - bits;
     if (prev > 255)
-        throw(EDOM, "%s: invalid lzw code", g.inf);
+        throw(EDOM, "%s: invalid lzw code", g.inputFilename);
     out_buf[0] = (unsigned char)final;      // write first decompressed byte
     outcnt = 1;
 
@@ -3211,7 +3190,7 @@ static void unlzw(void) {
                     while (rem > g.in_left) {
                         rem -= g.in_left;
                         if (load() == 0)
-                            throw(EDOM, "%s: lzw premature end", g.inf);
+                            throw(EDOM, "%s: lzw premature end", g.inputFilename);
                     }
                     g.in_left -= rem;
                     g.in_next += rem;
@@ -3236,7 +3215,7 @@ static void unlzw(void) {
         left += 8;
         if (left < bits) {
             if (NOMORE())
-                throw(EDOM, "%s: lzw premature end", g.inf);
+                throw(EDOM, "%s: lzw premature end", g.inputFilename);
             buf += (bits_t)(NEXT()) << left;
             left += 8;
         }
@@ -3254,7 +3233,7 @@ static void unlzw(void) {
                     while (rem > g.in_left) {
                         rem -= g.in_left;
                         if (load() == 0)
-                            throw(EDOM, "%s: lzw premature end", g.inf);
+                            throw(EDOM, "%s: lzw premature end", g.inputFilename);
                     }
                     g.in_left -= rem;
                     g.in_next += rem;
@@ -3281,7 +3260,7 @@ static void unlzw(void) {
                 // code we drop through (prev) will be a valid index so that
                 // random input does not cause an exception
                 if (code != end + 1 || prev > end)
-                    throw(EDOM, "%s: invalid lzw code", g.inf);
+                    throw(EDOM, "%s: invalid lzw code", g.inputFilename);
                 match[stack++] = (unsigned char)final;
                 code = prev;
             }
@@ -3311,7 +3290,7 @@ static void unlzw(void) {
                 out_buf[outcnt++] = match[--stack];
             g.out_tot += outcnt;
             if (g.decode == 1)
-                writen(g.outd, out_buf, outcnt);
+                writen(g.outputFileDescriptor, out_buf, outcnt);
             outcnt = 0;
         }
         do {
@@ -3322,7 +3301,7 @@ static void unlzw(void) {
     // write any remaining buffered output
     g.out_tot += outcnt;
     if (outcnt && g.decode == 1)
-        writen(g.outd, out_buf, outcnt);
+        writen(g.outputFileDescriptor, out_buf, outcnt);
 }
 
 // --- file processing ---
@@ -3381,12 +3360,12 @@ static void touch(char *path, time_t t) {
 // request and wait for the device to write out its buffered data to permanent
 // storage. On Windows, _commit() is used.
 static void out_push(void) {
-    if (g.outd == -1)
+    if (g.outputFileDescriptor == -1)
         return;
 #if defined(F_FULLSYNC)
     int ret = fcntl(g.outd, F_FULLSYNC);
 #else
-    int ret = fsync(g.outd);
+    int ret = fsync(g.outputFileDescriptor);
 #endif
     if (ret == -1)
         throw(errno, "sync error on %s (%s)", g.outf, strerror(errno));
@@ -3405,7 +3384,7 @@ static void process(char *path) {
 
     // open input file with name in, descriptor ind -- set name and mtime
     if (path == NULL) {
-        vstrcpy(&g.inf, &g.inz, 0, "<stdin>");
+        vstrcpy(&g.inputFilename, &g.inz, 0, "<stdin>");
         g.ind = 0;
         g.name = NULL;
         g.mtime = (g.headis & 2) && fstat(g.ind, &st) == 0 &&
@@ -3414,33 +3393,33 @@ static void process(char *path) {
     }
     else {
         // set input file name (already set if recursed here)
-        if (path != g.inf)
-            vstrcpy(&g.inf, &g.inz, 0, path);
-        len = strlen(g.inf);
+        if (path != g.inputFilename)
+            vstrcpy(&g.inputFilename, &g.inz, 0, path);
+        len = strlen(g.inputFilename);
 
         // try to stat input file -- if not there and decoding, look for that
         // name with compressed suffixes
-        if (lstat(g.inf, &st)) {
+        if (lstat(g.inputFilename, &st)) {
             if (errno == ENOENT && (g.list || g.decode)) {
                 char **sufx = sufs;
                 do {
                     if (*sufx == NULL)
                         break;
-                    vstrcpy(&g.inf, &g.inz, len, *sufx++);
+                    vstrcpy(&g.inputFilename, &g.inz, len, *sufx++);
                     errno = 0;
-                } while (lstat(g.inf, &st) && errno == ENOENT);
+                } while (lstat(g.inputFilename, &st) && errno == ENOENT);
             }
 #if defined(EOVERFLOW) && defined(EFBIG)
             if (errno == EOVERFLOW || errno == EFBIG)
                 throw(EDOM, "%s too large -- "
-                      "not compiled with large file support", g.inf);
+                      "not compiled with large file support", g.inputFilename);
 #endif
             if (errno) {
-                g.inf[len] = 0;
-                complain("skipping: %s does not exist", g.inf);
+                g.inputFilename[len] = 0;
+                complain("skipping: %s does not exist", g.inputFilename);
                 return;
             }
-            len = strlen(g.inf);
+            len = strlen(g.inputFilename);
         }
 
         // only process regular files or named pipes, but allow symbolic links
@@ -3449,15 +3428,15 @@ static void process(char *path) {
             (st.st_mode & S_IFMT) != S_IFIFO &&
             (st.st_mode & S_IFMT) != S_IFLNK &&
             (st.st_mode & S_IFMT) != S_IFDIR) {
-            complain("skipping: %s is a special file or device", g.inf);
+            complain("skipping: %s is a special file or device", g.inputFilename);
             return;
         }
         if ((st.st_mode & S_IFMT) == S_IFLNK && !g.force && !g.pipeout) {
-            complain("skipping: %s is a symbolic link", g.inf);
+            complain("skipping: %s is a symbolic link", g.inputFilename);
             return;
         }
         if ((st.st_mode & S_IFMT) == S_IFDIR && !g.recurse) {
-            complain("skipping: %s is a directory", g.inf);
+            complain("skipping: %s is a directory", g.inputFilename);
             return;
         }
 
@@ -3470,7 +3449,7 @@ static void process(char *path) {
 
             // accumulate list of entries (need to do this, since readdir()
             // behavior not defined if directory modified between calls)
-            here = opendir(g.inf);
+            here = opendir(g.inputFilename);
             if (here == NULL)
                 return;
             while ((next = readdir(here)) != NULL) {
@@ -3484,13 +3463,13 @@ static void process(char *path) {
             vstrcpy(&roll, &size, off, "");
 
             // run process() for each entry in the directory
-            base = len && g.inf[len - 1] != (unsigned char)'/' ?
-                   vstrcpy(&g.inf, &g.inz, len, "/") - 1 : len;
+            base = len && g.inputFilename[len - 1] != (unsigned char)'/' ?
+                   vstrcpy(&g.inputFilename, &g.inz, len, "/") - 1 : len;
             for (off = 0; roll[off]; off += strlen(roll + off) + 1) {
-                vstrcpy(&g.inf, &g.inz, base, roll + off);
-                process(g.inf);
+                vstrcpy(&g.inputFilename, &g.inz, base, roll + off);
+                process(g.inputFilename);
             }
-            g.inf[len] = 0;
+            g.inputFilename[len] = 0;
 
             // release list of entries
             FREE(roll);
@@ -3499,29 +3478,29 @@ static void process(char *path) {
 
         // don't compress .gz (or provided suffix) files, unless -f
         if (!(g.force || g.list || g.decode) && len >= strlen(g.sufx) &&
-                strcmp(g.inf + len - strlen(g.sufx), g.sufx) == 0) {
-            grumble("skipping: %s ends with %s", g.inf, g.sufx);
+                strcmp(g.inputFilename + len - strlen(g.sufx), g.sufx) == 0) {
+            grumble("skipping: %s ends with %s", g.inputFilename, g.sufx);
             return;
         }
 
         // create output file only if input file has compressed suffix
         if (g.decode == 1 && !g.pipeout && !g.list) {
-            size_t suf = compressed_suffix(g.inf);
+            size_t suf = compressed_suffix(g.inputFilename);
             if (suf == 0) {
                 complain("skipping: %s does not have compressed suffix",
-                         g.inf);
+                         g.inputFilename);
                 return;
             }
             len -= suf;
         }
 
         // open input file
-        g.ind = open(g.inf, O_RDONLY, 0);
+        g.ind = open(g.inputFilename, O_RDONLY, 0);
         if (g.ind < 0)
-            throw(errno, "read error on %s (%s)", g.inf, strerror(errno));
+            throw(errno, "read error on %s (%s)", g.inputFilename, strerror(errno));
 
         // prepare gzip header information for compression
-        g.name = g.headis & 1 ? justname(g.inf) : NULL;
+        g.name = g.headis & 1 ? justname(g.inputFilename) : NULL;
         g.mtime = g.headis & 2 ? st.st_mtime : 0;
     }
     SET_BINARY_MODE(g.ind);
@@ -3545,7 +3524,7 @@ static void process(char *path) {
             complain(method == -6 ? "skipping: %s corrupt: header crc error" :
                      method == -1 ? "skipping: %s empty" :
                      method < 0 ? "skipping: %s unrecognized format" :
-                     "skipping: %s unknown compression method", g.inf);
+                     "skipping: %s unknown compression method", g.inputFilename);
             return;
         }
 
@@ -3579,13 +3558,13 @@ static void process(char *path) {
         // write to stdout
         g.outf = alloc(NULL, strlen("<stdout>") + 1);
         strcpy(g.outf, "<stdout>");
-        g.outd = 1;
-        if (!g.decode && !g.force && isatty(g.outd))
+        g.outputFileDescriptor = 1;
+        if (!g.decode && !g.force && isatty(g.outputFileDescriptor))
             throw(EINVAL, "trying to write compressed data to a terminal"
                           " (use -f to force)");
     }
     else {
-        char *to = g.inf, *sufx = "";
+        char *to = g.inputFilename, *sufx = "";
         size_t pre = 0;
 
         // select parts of the output file name
@@ -3593,7 +3572,7 @@ static void process(char *path) {
             // for -dN or -dNT, use the path from the input file and the name
             // from the header, stripping any path in the header name
             if ((g.headis & 1) != 0 && g.hname != NULL) {
-                pre = (size_t)(justname(g.inf) - g.inf);
+                pre = (size_t)(justname(g.inputFilename) - g.inputFilename);
                 to = justname(g.hname);
                 len = strlen(to);
             }
@@ -3608,14 +3587,14 @@ static void process(char *path) {
         // create output file and open to write, overwriting any existing file
         // of the same name only if requested with --force or -f
         g.outf = alloc(NULL, pre + len + strlen(sufx) + 1);
-        memcpy(g.outf, g.inf, pre);
+        memcpy(g.outf, g.inputFilename, pre);
         memcpy(g.outf + pre, to, len);
         strcpy(g.outf + pre + len, sufx);
-        g.outd = open(g.outf, O_CREAT | O_TRUNC | O_WRONLY |
+        g.outputFileDescriptor = open(g.outf, O_CREAT | O_TRUNC | O_WRONLY |
                               (g.force ? 0 : O_EXCL), 0600);
 
         // if it exists and wasn't forced, give the user a chance to overwrite
-        if (g.outd < 0 && errno == EEXIST) {
+        if (g.outputFileDescriptor < 0 && errno == EEXIST) {
             int overwrite = 0;
             if (isatty(0) && g.verbosity) {
                 // get a response from the user -- the first non-blank
@@ -3640,18 +3619,18 @@ static void process(char *path) {
                 load_end();
                 return;
             }
-            g.outd = open(g.outf, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+            g.outputFileDescriptor = open(g.outf, O_CREAT | O_TRUNC | O_WRONLY, 0600);
         }
 
         // if some other error, give up
-        if (g.outd < 0)
+        if (g.outputFileDescriptor < 0)
             throw(errno, "write error on %s (%s)", g.outf, strerror(errno));
     }
     SET_BINARY_MODE(g.outd);
 
     // process ind to outd
     if (g.verbosity > 1)
-        fprintf(stderr, "%s to %s ", g.inf, g.outf);
+        fprintf(stderr, "%s to %s ", g.inputFilename, g.outf);
     if (g.decode) {
         try {
             if (method == 8)
@@ -3667,9 +3646,9 @@ static void process(char *path) {
             complain("skipping: %s", err.why);
             drop(err);
             outb(NULL, NULL, 0);
-            if (g.outd != -1 && g.outd != 1) {
-                close(g.outd);
-                g.outd = -1;
+            if (g.outputFileDescriptor != -1 && g.outputFileDescriptor != 1) {
+                close(g.outputFileDescriptor);
+                g.outputFileDescriptor = -1;
                 unlink(g.outf);
                 RELEASE(g.outf);
             }
@@ -3686,19 +3665,19 @@ static void process(char *path) {
 
     // finish up, copy attributes, set times, delete original
     load_end();
-    if (g.outd != -1 && g.outd != 1) {
+    if (g.outputFileDescriptor != -1 && g.outputFileDescriptor != 1) {
         if (g.sync)
             out_push();         // push to permanent storage
-        if (close(g.outd))
+        if (close(g.outputFileDescriptor))
             throw(errno, "write error on %s (%s)", g.outf, strerror(errno));
-        g.outd = -1;            // now prevent deletion on interrupt
+        g.outputFileDescriptor = -1;            // now prevent deletion on interrupt
         if (g.ind != 0) {
-            copymeta(g.inf, g.outf);
+            copymeta(g.inputFilename, g.outf);
             if (!g.keep) {
                 if (st.st_nlink > 1 && !g.force)
-                    complain("%s has hard links -- not unlinking", g.inf);
+                    complain("%s has hard links -- not unlinking", g.inputFilename);
                 else
-                    unlink(g.inf);
+                    unlink(g.inputFilename);
             }
         }
         if (g.decode && (g.headis & 2) != 0 && g.stamp)
@@ -3963,7 +3942,7 @@ int main(int argc, char **argv) {
     g.ret = 0;
     try {
         // initialize globals
-        g.inf = NULL;
+        g.inputFilename = NULL;
         g.inz = 0;
         g.in_which = -1;
         g.alias = "-";
@@ -4074,7 +4053,7 @@ int main(int argc, char **argv) {
     }
     always {
         // release resources
-        RELEASE(g.inf);
+        RELEASE(g.inputFilename);
         g.inz = 0;
         new_opts();
     }
