@@ -11,17 +11,19 @@ ZOP=deflate.o blocksplitter.o tree.o lz77.o cache.o hash.o util.o squeeze.o kata
 
 # use gcc and gmake on Solaris
 
-gigz: gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP)
+gigz: gigz.o yarn.o try.o mySystem.o myCLI.o myIO.o $(ZOP)
 	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP) $(LIBS)
 	ln -f gigz ungigz
 
-gigz.o: gigz.c yarn.h try.h mySystem.h myCLI.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
+gigz.o: gigz.c yarn.h try.h mySystem.h myCLI.h myIO.h $(ZOPFLI)deflate.h $(ZOPFLI)util.h
 
 yarn.o: yarn.c yarn.h
 
 try.o: try.c try.h
 
 mySystem.o: mySystem.c mySystem.h
+
+myIO.o: myIO.c myIO.h
 
 myCLI.o: myCLI.c myCLI.h
 
@@ -77,7 +79,7 @@ docs: gigz.pdf
 gigz.pdf: gigz.1
 	groff -mandoc -f H -T ps gigz.1 | ps2pdf - gigz.pdf
 
-all: gigz gigzj docs
+all: gigz docs
 
 clean:
 	@rm -f *.o gigz ungigz gigzj gigzn gigzt gigz.c.gz gigz.c.zz gigz.c.zip gigz.pdf
