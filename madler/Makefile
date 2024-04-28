@@ -72,8 +72,6 @@ test: gigz
 	(printf "w" | gzip ; printf "xyz") | ./gigz -cdf | wc -c | test `cat` -eq 4
 	@rm -f gigz.c.gz gigz.c.zz gigz.c.zip
 
-tests: test
-
 docs: gigz.pdf
 
 gigz.pdf: gigz.1
