@@ -1,15 +1,9 @@
-CC=gcc
-CFLAGS=-O3 -Wall -Wextra -Wno-unknown-pragmas -Wcast-qual
-LDFLAGS=
-# CFLAGS=-O3 -Wall -Wextra -Wno-unknown-pragmas -Wcast-qual -g -fsanitize=thread
-# LDFLAGS=-g -fsanitize=thread
-# CFLAGS=-O3 -Wall -Wextra -Wno-unknown-pragmas -Wcast-qual -g -fsanitize=address
-# LDFLAGS=-g -fsanitize=address
+CC=clang
+CFLAGS=-O3 -Wall -Wextra -Wno-unknown-pragmas -Wcast-qual -mmacosx-version-min=14.4 -arch arm64 -greproducible
+LDFLAGS=-mmacos-version-min=14.4
 LIBS=-lm -lpthread -lz
 ZOPFLI=zopfli/src/zopfli/
 ZOP=deflate.o blocksplitter.o tree.o lz77.o cache.o hash.o util.o squeeze.o katajainen.o symbols.o
-
-# use gcc and gmake on Solaris
 
 gigz: gigz.o yarn.o try.o mySystem.o myCLI.o myIO.o $(ZOP)
 	$(CC) $(LDFLAGS) -o gigz gigz.o yarn.o try.o mySystem.o myCLI.o $(ZOP) $(LIBS)
