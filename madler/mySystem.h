@@ -12,5 +12,6 @@
 #include <sys/sysctl.h> //
 
 int getMaxNumbersOfThreads(void);
+unsigned long time2dos(time_t t);
 
 #endif /* mySystem_h */
